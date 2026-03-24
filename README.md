@@ -1,10 +1,9 @@
  Sistema Distribuído de Coleção e Troca de Pokémon (NFTs)
 
 
-## 📖 Sobre o Projeto
-Este projeto foi desenvolvido como parte da disciplina **ACH 2147 - Desenvolvimento de Sistemas de Informação Distribuídos** da Escola de Artes, Ciências e Humanidades da USP (EACH-USP)
+## Sobre o Projeto
 
-O sistema implementa uma infraestrutura distribuída inspirada na dinâmica de colecionismo de Pokémon e seu objetivo principal é construir uma arquitetura descentralizada e tolerante a falhas onde cada Pokémon atua como um ativo digital único (NFT) com atributos variáveis (IVs). Os usuários podem interagir em um chat global em tempo real, competir por capturas (spawns aleatórios) e realizar trocas (P2P) de forma segura através do "PC do Bill", um sistema de armazenamento persistente e distribuído.
+O sistema implementa uma infraestrutura distribuída inspirada na dinâmica de colecionismo de Pokémon e seu objetivo principal é construir uma arquitetura descentralizada e tolerante a falhas onde cada Pokémon atua como um ativo digital único (NFT) com atributos variáveis (IVs). Os usuários podem interagir em um chat global em tempo real, competir por capturas (spawns aleatórios) e realizar trocas (P2P) de forma segura através do "PC", um sistema de armazenamento persistente e distribuído.
 
 ---
 
