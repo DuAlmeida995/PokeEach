@@ -38,7 +38,7 @@ graph TD
     classDef redis fill:#f66,stroke:#333,stroke-width:2px,color:#fff;
     classDef db fill:#ff9,stroke:#333,stroke-width:2px,color:#000;
 
-    subgraph FrontEnd ["Clientes (React / Next.js)"]
+    subgraph FrontEnd ["Clientes (Linguagem a Definir)"]
         C1(Treinador JoJo):::client
         C2(Treinador Roger Machado):::client
         C3(Treinador Cellbit):::client
