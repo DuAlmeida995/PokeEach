@@ -27,6 +27,58 @@ As transações críticas do jogo exigem garantias rígidas de consistência.
 * **Trocas P2P (Trade):** Durante a troca direta de ativos entre dois jogadores em nós diferentes, o sistema coordena uma transação segura. Caso ocorra uma queda de rede em qualquer um dos nós durante o processo, a transação sofre *rollback*, prevenindo a clonagem ou perda de Pokémon.
 
 ---
+## Arquitetura do Sistema
+
+graph TD
+    %% Estilos
+    classDef client fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef server fill:#bbf,stroke:#333,stroke-width:2px;
+    classDef redis fill:#f66,stroke:#333,stroke-width:2px,color:#fff;
+    classDef db fill:#ff9,stroke:#333,stroke-width:2px;
+
+    subgraph FrontEnd [&quot;🧑‍💻 Clientes (React / Next.js)&quot;]
+        C1(Treinador Davizão):::client
+        C2(Treinador André):::client
+        C3(Treinador Eduardo):::client
+    end
+
+    subgraph Middleware [&quot;🚀 Mensageria Assíncrona&quot;]
+        R{{&quot;Redis (Pub/Sub)&quot;}}:::redis
+    end
+
+    subgraph Backend [&quot;⚙️ Rede P2P Estruturada (Java)&quot;]
+        N1[&quot;Nó Servidor A<br>(Kanto)&quot;]:::server
+        N2[&quot;Nó Servidor B<br>(Johto)&quot;]:::server
+        N3[&quot;Nó Servidor C<br>(Hoenn)&quot;]:::server
+        
+        %% Conexões do Anel Chord (P2P)
+        N1 &lt;--&gt;|gRPC / DHT Chord<br>Exclusão Mútua| N2
+        N2 &lt;--&gt;|gRPC / DHT Chord<br>Exclusão Mútua| N3
+        N3 &lt;--&gt;|gRPC / DHT Chord<br>Exclusão Mútua| N1
+    end
+
+    subgraph Storage [&quot;🗄️ Armazenamento (PC do Bill)&quot;]
+        DB1[(&quot;Banco Nó A&quot;)]:::db
+        DB2[(&quot;Banco Nó B&quot;)]:::db
+        DB3[(&quot;Banco Nó C&quot;)]:::db
+    end
+
+    %% Conexões Clientes -&gt; Servidores
+    C1 &lt;--&gt;|WebSocket| N1
+    C2 &lt;--&gt;|WebSocket| N2
+    C3 &lt;--&gt;|WebSocket| N3
+
+    %% Conexões Servidores -&gt; Redis
+    N1 -.-&gt;|Publish / Subscribe| R
+    N2 -.-&gt;|Publish / Subscribe| R
+    N3 -.-&gt;|Publish / Subscribe| R
+
+    %% Conexões Servidores -&gt; Bancos
+    N1 --- DB1
+    N2 --- DB2
+    N3 --- DB3
+    
+---
 
 ## Especificação de Mensagens e Protocolos
 
