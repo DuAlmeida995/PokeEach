@@ -153,6 +153,8 @@ Gerencia a geração procedural de recursos e a resolução de condições de co
   * *Motivo 1: `FALHA_SORTE` (O RNG determinou que o Pokémon escapou da pokébola).*
   * *Motivo 2: `FALHA_DESPAWN` (O tempo do Pokémon no mapa expirou).*
   * *Motivo 3: `FALHA_JA_CAPTURADO` (Outro jogador adquiriu o Lock do banco de dados antes).*
+ 
+## Nomeação e Processos
 
 ## Tecnologias Utilizadas
 
