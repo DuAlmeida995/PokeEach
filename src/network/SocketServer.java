@@ -8,10 +8,12 @@ public class SocketServer extends Thread {
     
     private int porta;
     private boolean rodando;
+    private MessageParser parser;
 
-    public SocketServer(int porta) {
+    public SocketServer(int porta, MessageParser parser) {
         this.porta = porta;
         this.rodando = true;
+        this.parser = parser;
     }
 
     // metodo que o Java executa automaticamente em background quando damos um .start()
@@ -31,6 +33,7 @@ public class SocketServer extends Thread {
 
                 java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(socketVizinho.getInputStream()));
                 String mensagemRecebida = in.readLine();
+                parser.processarMensagem(mensagemRecebida);
                 System.out.println("[REDE] Mensagem recebida: " + mensagemRecebida);
             }
             
