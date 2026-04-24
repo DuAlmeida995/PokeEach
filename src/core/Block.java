@@ -1,8 +1,8 @@
 package core;
 
-import java.security.MessageDigest;
 import java.util.Date;
 import java.util.List;
+import crypto.HashUtils;
 
 
 public class Block {
@@ -23,18 +23,7 @@ public class Block {
     public String calculateHash() {
         // aqui pegamos todos os dados do bloco e transforma em uma String gigante
         String dataToHash = previousHash + Long.toString(timestamp) + Integer.toString(nonce) + transactions.toString();
-        
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = digest.digest(dataToHash.getBytes("UTF-8"));
-            StringBuilder buffer = new StringBuilder();
-            for (byte b : bytes) {
-                buffer.append(String.format("%02x", b));
-            }
-            return buffer.toString();
-        } catch (Exception e) {
-            throw new RuntimeException("erro ao calcular hash", e);
-        }
+        return HashUtils.applySha256(dataToHash);
     }
 
     // aqui eh o algoritmo de mineracao (Proof of Work)
