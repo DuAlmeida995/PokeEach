@@ -14,10 +14,17 @@ public class Wallet {
 
     // a carteira ja eh criada assim que o jogador abre o jogo pela primeira vez
 
-    public Wallet() {
-        gerarParDeChaves();
+    public Wallet(String nomeTreinador) {
+        if (KeyPairManager.chavesExistem(nomeTreinador)) {
+            System.out.println("Encontrado save local! Carregando identidade do Treinador: " + nomeTreinador);
+            this.chavePrivada = KeyPairManager.carregarChavePrivada(nomeTreinador + "_private.key");
+            this.chavePublica = KeyPairManager.carregarChavePublica(nomeTreinador + "_public.key");
+        } else {
+            System.out.println("Nenhum save encontrado. Gerando nova identidade para: " + nomeTreinador);
+            gerarParDeChaves();
+            KeyPairManager.salvarChaves(this.chavePrivada, this.chavePublica, nomeTreinador);
+        }
     }
-
     private void gerarParDeChaves() {
         try {
             // utilizamos o algoritmo RSA (o mesmo exigido pela nossa classe Transaction)
