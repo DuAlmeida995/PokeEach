@@ -1,11 +1,11 @@
 package core;
 
-import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.Date;
+import crypto.HashUtils;
 
 public class Transaction {
     
@@ -26,24 +26,10 @@ public class Transaction {
 
     // aqui calculamos o hash da transacao (usado como id unico)
     public String calculateHash() {
-        try {
-            // para geramos o hash, transformamos as chaves em texto (Base64)
-            String senderKey = (remetente != null) ? Base64.getEncoder().encodeToString(remetente.getEncoded()) : "null";
-            String recipientKey = (destinatario != null) ? Base64.getEncoder().encodeToString(destinatario.getEncoded()) : "null";
-            
-            String dataToHash = senderKey + recipientKey + idPokemon + Long.toString(timestamp);
-            
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = digest.digest(dataToHash.getBytes("UTF-8"));
-            
-            StringBuilder buffer = new StringBuilder();
-            for (byte b : bytes) {
-                buffer.append(String.format("%02x", b));
-            }
-            return buffer.toString();
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao calcular o Hash da transação", e);
-        }
+        String senderKey = (remetente != null) ? java.util.Base64.getEncoder().encodeToString(remetente.getEncoded()) : "null";
+        String recipientKey = (destinatario != null) ? java.util.Base64.getEncoder().encodeToString(destinatario.getEncoded()) : "null";
+        String dataToHash = senderKey + recipientKey + idPokemon + Long.toString(timestamp);
+        return crypto.HashUtils.applySha256(dataToHash);
     }
 
     // gera a assinatura digital utilizando a Chave Privada do remetente
