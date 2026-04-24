@@ -20,9 +20,7 @@ public class P2PNode {
     }
 
     public void iniciar() {
-        // Cria o parser passando a si mesmo (this) como referência
         MessageParser parser = new MessageParser(this);
-        // Passa o parser para dentro do servidor!
         servidor = new SocketServer(portaLocal, parser);
         servidor.start();
     }
@@ -34,7 +32,7 @@ public class P2PNode {
     }
 
     // ==========================================
-    // GOSSIP PROTOCOL (A Fofoca da Rede)
+    // GOSSIP PROTOCOL
     // ==========================================
 
     // adiciona o IP e porta de um colega da equipe à lista de contatos
