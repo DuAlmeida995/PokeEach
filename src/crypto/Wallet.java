@@ -9,7 +9,7 @@ import java.util.Base64;
 
 public class Wallet {
     
-    private PrivateKey chavePrivada;
+    private PrivateKey chavePrivada;    
     private PublicKey chavePublica;
 
     // a carteira ja eh criada assim que o jogador abre o jogo pela primeira vez
