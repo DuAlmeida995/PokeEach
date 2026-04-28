@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>dsid</groupId>
-    <artifactId>PokeEach_P2P</artifactId>
+    <artifactId>PokeEach</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -12,7 +12,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
+    
     <dependencies>
         <dependency>
             <groupId>org.xerial</groupId>
@@ -27,3 +27,4 @@
         </dependency>
     </dependencies>
 </project>
+

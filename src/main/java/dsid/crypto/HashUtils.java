@@ -1,4 +1,4 @@
-package crypto;
+package dsid.crypto;
 
 import java.security.MessageDigest;
 

@@ -1,9 +1,8 @@
-package core;
+package dsid.core;
 
 import java.util.Date;
 import java.util.List;
-import crypto.HashUtils;
-
+import dsid.crypto.HashUtils; 
 
 public class Block {
     private String hash;

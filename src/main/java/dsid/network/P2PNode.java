@@ -1,10 +1,8 @@
-package network;
+package dsid.network;
 
-import core.Blockchain;
+import dsid.core.Blockchain;
 import java.util.ArrayList;
 import java.util.List;
-import network.MessageParser;
-import network.SocketServer;
 
 public class P2PNode {
     

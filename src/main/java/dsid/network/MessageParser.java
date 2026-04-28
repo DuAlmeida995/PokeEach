@@ -1,4 +1,4 @@
-package network;
+package dsid.network;
 
 public class MessageParser {
 

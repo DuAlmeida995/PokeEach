@@ -1,11 +1,11 @@
-package core;
+package dsid.core;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.Date;
-import crypto.HashUtils;
+import dsid.crypto.HashUtils;
 
 public class Transaction {
     
@@ -29,7 +29,7 @@ public class Transaction {
         String senderKey = (remetente != null) ? java.util.Base64.getEncoder().encodeToString(remetente.getEncoded()) : "null";
         String recipientKey = (destinatario != null) ? java.util.Base64.getEncoder().encodeToString(destinatario.getEncoded()) : "null";
         String dataToHash = senderKey + recipientKey + idPokemon + Long.toString(timestamp);
-        return crypto.HashUtils.applySha256(dataToHash);
+        return dsid.crypto.HashUtils.applySha256(dataToHash);
     }
 
     // gera a assinatura digital utilizando a Chave Privada do remetente

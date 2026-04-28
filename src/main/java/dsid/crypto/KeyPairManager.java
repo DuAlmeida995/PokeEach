@@ -1,4 +1,4 @@
-package crypto;
+package dsid.crypto;
 
 import java.io.File;
 import java.io.FileOutputStream;

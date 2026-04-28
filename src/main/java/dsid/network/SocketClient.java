@@ -1,4 +1,4 @@
-package network;
+package dsid.network;
 
 import java.io.PrintWriter;
 import java.net.Socket;
