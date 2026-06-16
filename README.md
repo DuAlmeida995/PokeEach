@@ -35,7 +35,7 @@ graph TD
 
     subgraph Rede P2P ["Rede Descentralizada (Protocolo Gossip)"]
         N1["Nó Executável<br>(Treinador JoJo)"]:::node
-        N2["Nó Executável<br>(Treinador Roger)"]:::node
+        N2["Nó Executável<br>(Treinador Dorival)"]:::node
         N3["Nó Executável<br>(Treinador Cellbit)"]:::node
         N4["Nó Executável<br>(Treinador Jorginho do Flamengo )"]:::node
         
