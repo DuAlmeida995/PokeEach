@@ -82,6 +82,13 @@ A negociação P2P direta adota o modelo de submissão à Mempool (Piscina de Tr
 
 **Descrição:** Mensagem enviada pelo Nó que venceu o Consenso do turno, ordenando as trocas e capturas daquele momento.
 
+## 3. Módulo de Chat Global (Gossip Protocol)
+
+**Gossip Message:**  
+`<ID_Mensagem, Chave_Publica_Treinador, String_Mensagem, Timestamp>`
+
+**Descrição:** Mensagem propagada epidemicamente. Cada nó possui um filtro de cache para garantir que não exiba a mesma mensagem `ID_Mensagem` duas vezes na tela do jogador.
+
 ## Definição de diagramas de sequência
 
 **Diagrama 1 — Troca de Pokémon (TX)**
@@ -132,15 +139,6 @@ sequenceDiagram
     end
     Note over Brock, Vizinho: Timeout sem PONG → nó marcado como suspeito
 ```
-
-No README, coloque cada bloco dentro de ` ```mermaid ` e o GitHub renderiza automaticamente. A seta sólida `\->>` é síncrona/enviada, a tracejada `\-->>` é resposta/assíncrona — convenção padrão de diagramas de sequência UML.
-
-## 3. Módulo de Chat Global (Gossip Protocol)
-
-**Gossip Message:**  
-`<ID_Mensagem, Chave_Publica_Treinador, String_Mensagem, Timestamp>`
-
-**Descrição:** Mensagem propagada epidemicamente. Cada nó possui um filtro de cache para garantir que não exiba a mesma mensagem `ID_Mensagem` duas vezes na tela do jogador.
 
 ---
 
