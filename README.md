@@ -82,6 +82,59 @@ A negociação P2P direta adota o modelo de submissão à Mempool (Piscina de Tr
 
 **Descrição:** Mensagem enviada pelo Nó que venceu o Consenso do turno, ordenando as trocas e capturas daquele momento.
 
+## Definição de diagramas de sequência
+
+**Diagrama 1 — Troca de Pokémon (TX)**
+```mermaid
+sequenceDiagram
+    participant Ash
+    participant Nó P2P
+    participant Misty
+
+    Ash->>Nó P2P: TX | {pokemon, destino, assinatura}
+    Note over Nó P2P: valida assinatura digital
+    Nó P2P->>Misty: TX | {mesmo payload}
+    Note over Misty: adiciona à mempool
+    Note over Ash, Misty: TCP assíncrono · conexão temporária · fire and forget
+```
+
+**Diagrama 2 — Mineração e propagação de bloco (NEW_BLOCK)**
+```mermaid
+sequenceDiagram
+    participant Minerador
+    participant Nó A
+    participant Nó B
+
+    Note over Minerador: PoW loop (nonce++)
+    Minerador->>Nó A: NEW_BLOCK | {bloco JSON}
+    Note over Nó A: valida PoW + hash
+    Note over Nó A: salva no SQLite
+    Nó A->>Nó B: NEW_BLOCK | {mesmo bloco}
+    Note over Nó B: valida PoW + hash
+    Note over Nó B: salva no SQLite
+    Note over Nó A, Nó B: Se height recebido > height local → aceita (longest chain wins)
+```
+
+**Diagrama 3 — Sync inicial de novo nó (GET_CHAIN)**
+```mermaid
+sequenceDiagram
+    participant Brock as Brock (novo nó)
+    participant Vizinho as Nó existente
+
+    Brock->>Vizinho: GET_CHAIN | {height_local: 0}
+    Note over Vizinho: serializa cadeia completa em JSON
+    Vizinho-->>Brock: CHAIN | {[bloco0, bloco1, ..., blocoN]}
+    Note over Brock: valida cada bloco (hash + PoW)
+    Note over Brock: substitui cadeia local se válida e maior
+    loop Heartbeat periódico
+        Brock->>Vizinho: PING
+        Vizinho-->>Brock: PONG
+    end
+    Note over Brock, Vizinho: Timeout sem PONG → nó marcado como suspeito
+```
+
+No README, coloque cada bloco dentro de ` ```mermaid ` e o GitHub renderiza automaticamente. A seta sólida `\->>` é síncrona/enviada, a tracejada `\-->>` é resposta/assíncrona — convenção padrão de diagramas de sequência UML.
+
 ## 3. Módulo de Chat Global (Gossip Protocol)
 
 **Gossip Message:**  
