@@ -199,6 +199,54 @@ A validação do estado do jogo utilizará um algoritmo de consenso adaptado, co
 
 ---
 
+## Tolerância a Falhas
+
+### 1. Disponibilidade vs. Confiabilidade
+Para o PokeEach, a **Disponibilidade** é prioritária.
+* **Motivo:** Em uma rede P2P descentralizada, é aceitável que um nó fique temporariamente inconsistente (sem o último bloco) operando localmente. Não é aceitável congelar a rede inteira aguardando sincronização global.
+* **Métricas:** Foco em maximizar o $MTTF$ e mitigar o impacto do $MTTR$, tolerando janelas curtas de inconsistência eventual.
+
+---
+
+### 2. Classes de Falhas e Tolerância
+O sistema adota uma classificação **fail-noisy** (falhas de parada eventualmente detectáveis via timeout).
+
+| Tipo de Falha (Slide) | Tolerada? | Manifestação no PokeEach |
+| :--- | :---: | :--- |
+| **Parada (Crash)** | ✅ Sim | Um nó desliga abruptamente durante a mineração ou transmissão. |
+| **Omissão de TX / RX** | ✅ Sim | Sockets falham ao propagar uma transação (`mempool`) ou bloco para um vizinho. |
+| **Temporal** | ⚠️ Parcial | Atrasos na propagação de rede são resolvidos pela regra da maior cadeia (*longest chain*). |
+| **Resposta / Valor** | ❌ Não | Hashes inválidos são rejeitados; o sistema não possui redundância de cálculo para correção. |
+| **Arbitrária (Bizantina)** | ❌ Não | Não há implementação de algoritmos de tolerância bizantina (BFT). |
+
+---
+
+### 3. Redundância Física (Métricas de Suporte)
+Como toleramos apenas falhas de **crash**, a regra de processos falhantes segue a proporção $k+1$ réplicas para tolerar $k$ falhas:
+* **Com $N$ nós:** A rede tolera até **$N-1$ crashes**. 
+* Qualquer réplica sobrevivente mantém a integridade histórica completa da blockchain através de seu banco de dados local SQLite, permitindo que a rede continue operando e minerando sem um número mínimo fixo de nós.
+
+---
+
+### 4. Estratégia e Protocolo de Detecção de Falhas
+* **Modelo:** Sistema parcialmente síncrono, operando com **Heartbeat passivo e Timeout adaptativo**.
+* **Mecânica:** O `P2PNode` envia pacotes periódicos (`PING`). Se o par não responder (`PONG`) dentro do timeout $t$, ele se torna suspeito e é removido da lista ativa de broadcast. O nó é readicionado imediatamente ao enviar qualquer mensagem válida subsequente.
+
+---
+
+### 5. O Teorema CAP e o PokeEach
+O PokeEach é categorizado estritamente como um sistema **AP (Disponibilidade e Tolerância ao Particionamento)**.
+* **Justificativa:** Havendo uma partição de rede, os nós isolados continuam minerando e aceitando trocas localmente (mantendo o sistema disponível). 
+* A consistência forte ($C$) é sacrificada temporariamente. Quando a comunicação é restabelecida, a consistência converge através do mecanismo de **Consistência Sequencial Eventual** ditada pelo algoritmo de *Proof of Work*.
+
+---
+
+### 6. Estratégia de Recuperação de Falhas
+Adotamos a **Recuperação para Frente (Forward Error Recovery)** baseada no histórico de blocos:
+* **Recuperação pós-crash:** Ao inicializar, o nó executa um handshake de sincronização (`GET_CHAIN`), identifica o atraso na altura do bloco local (`height`), requisita os blocos faltantes e avança para o estado válido mais recente.
+* **Atomicidade em Disco:** O armazenamento na camada `storage` utiliza `conn.setAutoCommit(false)` no SQLite. Isso garante que a persistência de novos blocos (`saveBlock`) seja inteiramente gravada ou descartada, agindo como o *checkpoint* natural do sistema.
+
+
 #  Justificativa da Topologia: Por que P2P Puro e Executável?
 
 A transição para um modelo 100% descentralizado e a obrigatoriedade de um cliente executável (Desktop Application) atendem às restrições de segurança exigidas por uma rede de NFTs:
