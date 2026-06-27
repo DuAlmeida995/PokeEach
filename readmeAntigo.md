@@ -23,6 +23,15 @@ Para evitar o problema de clonagem (*Double Spending*) em capturas e trocas simu
 ### 4. Mensageria Descentralizada (Gossip Protocol)
 Sem um servidor Redis (Pub/Sub) para espalhar mensagens de chat ou eventos, a rede utiliza o protocolo de fofoca (*Gossip Protocol*). Quando um nó envia uma mensagem ou propõe uma transação de troca, ele a propaga para seus vizinhos conhecidos, que a retransmitem até que a rede inteira seja notificada em instantes.
 
+### Como o sistema será testado?
+O sistema será validado em três etapas progressivas:
+1. **Ambiente Local Mononó:** Testes unitários focados na validação criptográfica (verificação de assinaturas digitais de transações e cálculo do loop de mineração/Proof of Work).
+2. **Simulação de Rede Local (Múltiplas Portas):** Execução de múltiplas instâncias do arquivo `.jar` na mesma máquina física, mapeando portas TCP distintas (ex: `8081`, `8082`, `8083`) para simular a concorrência na Mempool, a ocorrência de bifurcações (*forks*) locais e a convergência do consenso.
+3. **Ambiente Concorrente Virtualizado:** Utilização de containers Docker para instanciar nós isolados limitando propositalmente a largura de banda e injetando latência, garantindo o disparo correto das rotas de *Heartbeat* e o comportamento resiliente sob cenários de partições de rede.
+
+### Faz sentido usar algum tipo de middleware?
+**Não para o núcleo do consenso.** A adoção de middlewares de comunicação tradicionais (como CORBA, Java RMI ou gRPC) ou middlewares de mensageria orientados a filas (como RabbitMQ ou Apache Kafka) introduziria um nível de abstração ou dependência centralizada que violaria a premissa de um ecossistema *Pure P2P*. A camada de rede exige controle total sobre o fluxo de pacotes brutos e controle de conexões simétricas, o que justifica o desenvolvimento do protocolo de mensagens diretamente sobre a API nativa de Sockets TCP do Java (`ServerSocket` e `Socket`).
+
 ---
 
 ## Diagrama da Arquitetura P2P Pura
