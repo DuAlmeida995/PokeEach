@@ -199,6 +199,20 @@ A validação do estado do jogo utilizará um algoritmo de consenso adaptado, co
 
 ---
 
+## Replicação e Consistência
+
+### Quais dados ou entidades são replicadas?
+A **blockchain completa**. Cada nó da rede mantém uma réplica integral e idêntica de todos os blocos confirmados (e suas respectivas transações de troca de Pokémon) persistidos localmente em banco de dados SQLite. Não há suporte para replicação parcial, fragmentação (*sharding*) ou nós clientes sem dados: cada participante é uma cópia fiel do livro-razão (*ledger*) inteiro.
+
+### Qual o modelo de consistência adotado?
+**Consistência Sequencial** (Lamport, 1979). Garante-se que todos os nós processem e observem as transações na mesma ordem global através do encadeamento criptográfico dos blocos via *Proof of Work*. O modelo não é linearizável, dado que a ordenação canônica é definida estritamente pelo *height* lógico do bloco, e não pelo tempo físico de relógio (cujo campo `timestamp` serve apenas como metadado informativo).
+
+### Como distribuir as cópias (estático ou dinâmico)?
+**Replicação Dinâmica e Completa**. O conjunto de réplicas ativas é elástico; novos nós podem entrar ou sair da topologia P2P de forma assíncrona. Ao ingressar, o nó executa um handshake inicial disparando uma mensagem primitiva `GET_CHAIN` para um par conhecido, consome a cadeia histórica completa e autopromove-se imediatamente a uma réplica plena e simétrica.
+
+### Qual o protocolo de consistência (foi implementado manualmente ou uma biblioteca é utilizada)?
+**Implementado manualmente**. O protocolo baseia-se em difusão epidêmica (**Gossip**) com convergência orientada por **Longest Chain Wins** (Regra da Maior Cadeia). Blocos minerados são propagados via `broadcast()` TCP nativo para os vizinhos conhecidos, e eventuais bifurcações (*forks*) são resolvidas localmente adotando a cadeia de maior *height* válido. O código foi desenvolvido em Java Puro, utilizando bibliotecas externas apenas para persistência (driver SQLite) e transporte de mensagens (Google Gson para serialização JSON).
+
 ## Tolerância a Falhas
 
 ### 1. Disponibilidade vs. Confiabilidade
