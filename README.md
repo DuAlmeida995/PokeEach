@@ -65,9 +65,9 @@ O projeto é organizado nos seguintes pacotes Java:
  
 O sistema será validado em três etapas progressivas:
  
-1. **Ambiente Local Mononó:** Testes unitários focados na validação criptográfica — verificação de assinaturas digitais de transações e cálculo do loop de mineração (Proof of Work).
-2. **Simulação de Rede Local (Múltiplas Portas):** Execução de múltiplas instâncias do `.jar` na mesma máquina física, mapeando portas TCP distintas (ex: `8081`, `8082`, `8083`) para simular concorrência na Mempool, ocorrência de forks locais e convergência do consenso.
-3. **Ambiente Concorrente Virtualizado:** Uso de containers Docker para instanciar nós isolados, limitando propositalmente a largura de banda e injetando latência — garantindo o disparo correto das rotas de Heartbeat e o comportamento resiliente sob partições de rede.
+1. **Ambiente Local Mononó:** Testes unitários focados na validação criptográfica, verificação de assinaturas digitais de transações e cálculo do loop de mineração (Proof of Work).
+2. **Simulação de Rede Local (Múltiplas Portas):** Execução de múltiplas instâncias do .jar` na mesma máquina física, mapeando portas TCP distintas (ex: `8081`, `8082`, `8083`) para simular concorrência na Mempool, ocorrência de forks locais e convergência do consenso.
+3. **Ambiente Concorrente Virtualizado:** Uso de containers Docker para instanciar nós isolados, limitando propositalmente a largura de banda e injetando latência, garantindo o disparo correto das rotas de Heartbeat e o comportamento resiliente sob partições de rede.
 ### Faz sentido usar algum tipo de middleware?
  
 **Não para o núcleo do consenso.** A adoção de middlewares tradicionais (CORBA, Java RMI, gRPC) ou de mensageria orientada a filas (RabbitMQ, Kafka) introduziria dependência centralizada que violaria a premissa Pure P2P. A camada de rede exige controle total sobre o fluxo de pacotes e conexões simétricas, o que justifica o desenvolvimento do protocolo de mensagens diretamente sobre a API nativa de Sockets TCP do Java (`ServerSocket` e `Socket`).
@@ -78,10 +78,10 @@ O sistema será validado em três etapas progressivas:
  
 ### Qual o tipo de comunicação utilizado?
  
-- **Protocolo de transporte:** TCP — garante entrega ordenada, essencial para integridade dos blocos.
-- **Modelo:** Assíncrono e *fire-and-forget* — o nó emissor não bloqueia aguardando resposta após enviar `TX` ou `NEW_BLOCK`. A exceção é o fluxo `GET_CHAIN`, onde o nó novo aguarda a cadeia completa antes de operar.
-- **Conexões:** Temporárias — o `SocketClient` abre a conexão, envia a mensagem e fecha imediatamente, liberando recursos de rede.
-- **Multicast:** Implementado por software no método `broadcast()` do `P2PNode`, que itera sobre a lista `vizinhosConhecidos` e envia a mesma mensagem via TCP para cada par. Não utiliza UDP multicast de rede — escolha deliberada para garantir entrega confiável.
+- **Protocolo de transporte:** TCP, garante entrega ordenada, essencial para integridade dos blocos.
+- **Modelo:** Assíncrono e *fire-and-forget*, o nó emissor não bloqueia aguardando resposta após enviar `TX` ou `NEW_BLOCK`. A exceção é o fluxo `GET_CHAIN`, onde o nó novo aguarda a cadeia completa antes de operar.
+- **Conexões:** Temporárias, o `SocketClient` abre a conexão, envia a mensagem e fecha imediatamente, liberando recursos de rede.
+- **Multicast:** Implementado por software no método `broadcast()` do `P2PNode`, que itera sobre a lista `vizinhosConhecidos` e envia a mesma mensagem via TCP para cada par. Não utiliza UDP multicast de rede, escolha deliberada para garantir entrega confiável.
 ### Quais são os tipos de mensagens e seus formatos?
  
 Todas as mensagens seguem o formato `COMANDO|payload_JSON`, com separador pipe (`|`) e payload serializado via Google Gson.
@@ -148,7 +148,7 @@ sequenceDiagram
  
 ### Multicast
  
-O Gossip Protocol implementa multicast por software: ao minerar um bloco ou receber uma transação válida, o nó chama `P2PNode.broadcast()`, que abre uma conexão TCP temporária com cada endereço em `vizinhosConhecidos` e envia a mesma mensagem. A propagação é epidêmica — cada nó que recebe e valida a mensagem a repassa para seus próprios vizinhos, inundando a rede de forma descentralizada sem coordenador central.
+O Gossip Protocol implementa multicast por software: ao minerar um bloco ou receber uma transação válida, o nó chama `P2PNode.broadcast()`, que abre uma conexão TCP temporária com cada endereço em `vizinhosConhecidos` e envia a mesma mensagem. A propagação é epidêmica, cada nó que recebe e valida a mensagem a repassa para seus próprios vizinhos, inundando a rede de forma descentralizada sem coordenador central.
  
 ---
  
@@ -156,7 +156,7 @@ O Gossip Protocol implementa multicast por software: ao minerar um bloco ou rece
  
 ### Quais recursos precisaram ser nomeados?
  
-- **Treinadores (Jogadores):** Identificados pela sua **Chave Pública RSA-2048**, codificada em Base64. Funciona como o "endereço de carteira" do treinador — público, único e matematicamente derivado da chave privada que só ele possui.
+- **Treinadores (Jogadores):** Identificados pela sua **Chave Pública RSA-2048**, codificada em Base64. Funciona como o "endereço de carteira" do treinador, público, único e matematicamente derivado da chave privada que só ele possui.
 - **Ativos Digitais (Pokémon):** Identificados pelo `transactionId` da transação que os originou — um hash SHA-256 calculado sobre `(remetente + destinatario + idPokemon + timestamp)`, garantindo unicidade matemática mesmo para Pokémon da mesma espécie.
 - **Blocos:** Identificados pelo seu `hash` SHA-256, calculado sobre todos os campos do cabeçalho (height, previousHash, timestamp, nonce, minerKey, rewardPokemon, transações).
 ### Qual o esquema de nomeação?
@@ -217,11 +217,11 @@ A **blockchain completa**. Cada nó da rede mantém uma réplica integral e idê
  
 ### Qual o modelo de consistência adotado?
  
-**Consistência Sequencial** (Lamport, 1979). Garante-se que todos os nós processem e observem as transações na mesma ordem global através do encadeamento criptográfico dos blocos via *Proof of Work*. O modelo não é linearizável, dado que a ordenação canônica é definida estritamente pelo `height` lógico do bloco, e não pelo tempo físico de relógio (cujo campo `timestamp` serve apenas como metadado informativo).
+**Consistência Sequencial**. Garante-se que todos os nós processem e observem as transações na mesma ordem global através do encadeamento criptográfico dos blocos via *Proof of Work*. O modelo não é linearizável, dado que a ordenação canônica é definida estritamente pelo `height` lógico do bloco, e não pelo tempo físico de relógio (cujo campo `timestamp` serve apenas como metadado informativo).
  
 ### Como distribuir as cópias (estático ou dinâmico)?
  
-**Replicação Dinâmica e Completa**. O conjunto de réplicas ativas é elástico; novos nós podem entrar ou sair da topologia P2P de forma assíncrona. Ao ingressar, o nó executa um handshake inicial disparando uma mensagem `GET_CHAIN` para um par conhecido, consome a cadeia histórica completa e autopromove-se imediatamente a uma réplica plena e simétrica.
+**Replicação Dinâmica e Completa**. O conjunto de réplicas ativas é elástico, novos nós podem entrar ou sair da topologia P2P de forma assíncrona. Ao ingressar, o nó executa um handshake inicial disparando uma mensagem `GET_CHAIN` para um par conhecido, consome a cadeia histórica completa e autopromove-se imediatamente a uma réplica plena e simétrica.
  
 ### Qual o protocolo de consistência (foi implementado manualmente ou uma biblioteca é utilizada)?
  
