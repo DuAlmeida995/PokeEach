@@ -1,0 +1,10 @@
+# Ignorar arquivos do banco de dados local
+*.db
+*.db-journal
+
+# Ignorar pastas do Maven e VS Code
+target/
+.settings/
+.classpath
+.project
+.factorypath

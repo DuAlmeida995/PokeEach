@@ -1,4 +1,4 @@
-package storage;
+package dsid.storage;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
