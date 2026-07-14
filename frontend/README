@@ -1,0 +1,43 @@
+# PokEach — Frontend
+ 
+## Setup
+ 
+```bash
+# Entre na pasta frontend
+cd frontend
+ 
+# Instale as dependências
+npm install
+ 
+# Rode em modo desenvolvimento
+npm run dev
+```
+ 
+Acesse em `http://localhost:3000`
+ 
+## Build para produção
+ 
+```bash
+npm run build
+```
+ 
+## Estrutura
+ 
+```
+frontend/
+├── src/
+│   ├── App.jsx                  # Roteamento entre telas
+│   ├── main.jsx                 # Ponto de entrada React
+│   ├── index.css                # Variáveis globais e reset
+│   ├── components/
+│   │   ├── Sidebar.jsx          # Lista de online + botão minerar
+│   │   └── PokemonCard.jsx      # Card de Pokémon na grade
+│   ├── pages/
+│   │   ├── Inventario.jsx       # Tela 1 — PC Box + stats
+│   │   └── Troca.jsx            # Tela 2 — Fluxo de troca
+│   └── services/
+│       └── mockData.js          # Dados mock + chamadas à PokeAPI
+├── index.html
+├── vite.config.js
+└── package.json
+```
