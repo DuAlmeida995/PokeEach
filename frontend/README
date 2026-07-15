@@ -12,7 +12,7 @@ npm install
 # Rode em modo desenvolvimento
 npm run dev
 ```
- 
+  
 Acesse em `http://localhost:3000`
  
 ## Build para produção

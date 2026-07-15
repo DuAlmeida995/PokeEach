@@ -125,4 +125,10 @@ public class Block {
              + ",\n  transactions="  + transactions.size()
              + "\n}";
     }
+
+    // Recalcula o hash após definir o rewardPokemon (chamado pelo MiningService)
+    public void recalcularHashComReward() {
+        this.hash = calculateHash();
+    }
+
 }

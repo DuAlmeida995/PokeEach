@@ -8,39 +8,26 @@ import dsid.storage.LedgerRepository;
 
 import java.security.PublicKey;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Serviço de Mineração da rede PokeEach.
  *
- * Responsabilidades:
- *   1. Executar o algoritmo Proof-of-Work (loop do nonce).
- *   2. Sortear um Pokémon aleatório como recompensa ("Coinbase / Spawn").
- *   3. Montar o bloco completo, adicioná-lo à cadeia e persistir no banco.
- *
- * Pacote escolhido: {@code dsid.service} — criado especificamente para esta
- * classe, separando a lógica de negócio de mineração das entidades do domínio
- * (core) e da infraestrutura (storage). Isso mantém responsabilidades bem
- * delimitadas e facilita futuras extensões (ex.: taxa de dificuldade dinâmica).
+ * Correção principal: o Pokémon de recompensa agora é determinístico —
+ * derivado do hash do bloco minerado em vez de um Random local.
+ * Isso garante que qualquer nó da rede que receba o mesmo bloco
+ * calcule o mesmo Pokémon de recompensa, mantendo consistência global.
  */
 public class MiningService {
 
-    // ---------------------------------------------------------------
-    // Pokédex de recompensas (Spawn Pool)
-    // ---------------------------------------------------------------
-    /** Pool dos Pokémon que podem ser sorteados como recompensa de mineração. */
+    // Pool de Pokémon disponíveis como recompensa de mineração.
+    // A ordem importa — é indexada deterministicamente pelo hash do bloco.
     private static final String[] REWARD_POKEMON = {
-        "Bulbasaur", "Charmander", "Squirtle", "Pikachu",  "Eevee",
-        "Meowth",    "Psyduck",    "Geodude",  "Machop",   "Gastly",
-        "Magikarp",  "Ditto",      "Snorlax",  "Lapras",   "Jolteon",
-        "Flareon",   "Vaporeon",   "Porygon",  "Mew",      "Dragonite"
+        "Bulbasaur", "Charmander", "Squirtle",  "Pikachu",   "Eevee",
+        "Meowth",    "Psyduck",    "Geodude",   "Machop",    "Gastly",
+        "Magikarp",  "Ditto",      "Snorlax",   "Lapras",    "Jolteon",
+        "Flareon",   "Vaporeon",   "Porygon",   "Mew",       "Dragonite"
     };
 
-    private final Random random = new Random();
-
-    // ---------------------------------------------------------------
-    // Dependências
-    // ---------------------------------------------------------------
     private final Blockchain       blockchain;
     private final LedgerRepository repository;
 
@@ -58,16 +45,11 @@ public class MiningService {
      *
      * Fluxo:
      *   1. Verifica se há transações pendentes.
-     *   2. Sorteia o Pokémon de recompensa para o minerador.
-     *   3. Instancia o bloco apontando para o hash do último bloco confirmado.
-     *   4. Executa o loop Proof-of-Work ({@link Block#mineBlock}).
-     *   5. Adiciona o bloco à cadeia em memória.
-     *   6. Limpa a mempool.
-     *   7. Persiste o bloco no banco SQLite.
-     *
-     * @param mineradorPublicKey  Chave pública do nó que executou a mineração
-     *                            (receberá o crédito do Pokémon sorteado).
-     * @return                    O bloco recém-minerado e persistido.
+     *   2. Monta o bloco com rewardPokemon vazio (ainda não sabemos o hash).
+     *   3. Executa o loop Proof-of-Work.
+     *   4. Deriva o Pokémon de recompensa a partir do hash encontrado.
+     *   5. Recalcula o hash incluindo o rewardPokemon (torna-o parte do bloco).
+     *   6. Persiste e propaga.
      */
     public Block minerarBlocoPendente(PublicKey mineradorPublicKey) {
         List<Transaction> txPendentes = blockchain.getPendingTransactions();
@@ -77,38 +59,57 @@ public class MiningService {
             return null;
         }
 
-        // --- 1. Sorteia o Pokémon de recompensa ---
-        String pokemon = sortearPokemon();
-        System.out.println("[MINING] Pokémon de recompensa sorteado: " + pokemon + " 🎉");
+        int    nextHeight = blockchain.getNextHeight();
+        String prevHash   = blockchain.getUltimoBloco().getHash();
+        int    difficulty = blockchain.getDifficulty();
 
-        // --- 2. Monta o bloco ---
-        int    nextHeight  = blockchain.getNextHeight();
-        String prevHash    = blockchain.getUltimoBloco().getHash();
-        int    difficulty  = blockchain.getDifficulty();
+        // Monta o bloco sem rewardPokemon ainda
+        Block novoBloco = new Block(nextHeight, prevHash, txPendentes, mineradorPublicKey, "");
 
-        Block novoBloco = new Block(nextHeight, prevHash, txPendentes, mineradorPublicKey, pokemon);
-
-        // --- 3. Proof-of-Work ---
+        // Executa o Proof-of-Work
         System.out.println("[MINING] Iniciando Proof-of-Work (difficulty=" + difficulty + ")...");
         novoBloco.mineBlock(difficulty);
 
-        // --- 4. Registra na cadeia e limpa a mempool ---
-        blockchain.adicionarBlocoMinerado(novoBloco);
-        blockchain.limparMempool();
+        // Deriva o Pokémon deterministicamente do hash final
+        String pokemon = derivarPokemonDoHash(novoBloco.getHash());
+        novoBloco.setRewardPokemonFromDb(pokemon);
+        // Recalcula o hash incluindo o rewardPokemon
+        novoBloco.recalcularHashComReward();
 
-        // --- 5. Persiste no banco de dados ---
+        System.out.println("[MINING] Pokémon de recompensa: " + pokemon
+                + " (derivado do hash — consistente em toda a rede)");
+
+        // Registra na cadeia e limpa mempool
+        blockchain.adicionarBlocoMinerado(novoBloco);
+        blockchain.limparMempool(novoBloco);
+
+        // Persiste
         repository.saveBlock(novoBloco);
-        System.out.println("[MINING] ✅ Bloco #" + nextHeight + " persistido no banco com hash: " + novoBloco.getHash());
+        System.out.println("[MINING] ✅ Bloco #" + nextHeight
+                + " persistido. Hash: " + novoBloco.getHash());
 
         return novoBloco;
     }
 
     // ---------------------------------------------------------------
-    // Utilitários internos
+    // Spawn determinístico
     // ---------------------------------------------------------------
 
-    /** Sorteia aleatoriamente um Pokémon da pool de recompensas. */
-    public String sortearPokemon() {
-        return REWARD_POKEMON[random.nextInt(REWARD_POKEMON.length)];
+    /**
+     * Deriva o Pokémon de recompensa a partir do hash do bloco.
+     *
+     * Qualquer nó que receba o mesmo bloco vai chamar este método
+     * e obter o mesmo resultado — sem estado local, sem Random.
+     *
+     * Algoritmo: soma os bytes do hash (interpretados como unsigned)
+     * e usa módulo pelo tamanho do pool.
+     */
+    public static String derivarPokemonDoHash(String blockHash) {
+        long soma = 0;
+        for (char c : blockHash.toCharArray()) {
+            soma += c;
+        }
+        int index = (int)(Math.abs(soma) % REWARD_POKEMON.length);
+        return REWARD_POKEMON[index];
     }
 }
