@@ -20,18 +20,6 @@ import java.security.PublicKey;
 import java.util.*;
 import java.util.concurrent.Executors;
 
-/**
- * Servidor HTTP REST embutido no JAR — sem dependências externas.
- * Usa com.sun.net.httpserver.HttpServer (Java 17 nativo).
- *
- * Endpoints:
- *   GET  /status               → height, peers, mempool size, chave pública local
- *   GET  /inventario           → Pokémon do treinador local
- *   GET  /inventario/{chave}   → Pokémon de outro treinador (pela chave pública Base64)
- *   GET  /peers                → lista de nós online conhecidos
- *   POST /minerar              → minera um bloco, retorna Pokémon sorteado
- *   POST /transacao            → cria e submete TX à mempool + broadcast
- */
 public class RestServer {
 
     private static final Gson GSON = new GsonBuilder().serializeNulls().create();
@@ -46,19 +34,19 @@ public class RestServer {
     public RestServer(int porta, P2PNode node, Blockchain blockchain,
                       LedgerRepository repository, MiningService miner, Wallet wallet)
             throws IOException {
-
         this.node       = node;
         this.blockchain = blockchain;
         this.repository = repository;
         this.miner      = miner;
         this.wallet     = wallet;
 
-        server = HttpServer.create(new InetSocketAddress("localhost", porta), 0);
+        // Escuta em 0.0.0.0 para aceitar conexões internas do proxy
+        server = HttpServer.create(new InetSocketAddress(porta), 0);
         server.setExecutor(Executors.newFixedThreadPool(4));
 
-        // Registra rotas
         server.createContext("/status",     this::handleStatus);
         server.createContext("/inventario", this::handleInventario);
+        server.createContext("/inventario/", this::handleInventario);
         server.createContext("/peers",      this::handlePeers);
         server.createContext("/minerar",    this::handleMinerar);
         server.createContext("/transacao",  this::handleTransacao);
@@ -66,74 +54,97 @@ public class RestServer {
 
     public void iniciar() {
         server.start();
-        System.out.println("[REST] API disponível em http://localhost:"
-                + server.getAddress().getPort());
+        System.out.println("[REST] API em http://localhost:" + server.getAddress().getPort());
     }
 
-    public void parar() {
-        server.stop(0);
-    }
+    public void parar() { server.stop(0); }
 
     // ---------------------------------------------------------------
     // GET /status
     // ---------------------------------------------------------------
     private void handleStatus(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
-
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("height",       blockchain.getUltimoBloco().getHeight());
-        body.put("peers",        node.getVizinhosAtivos().size());
-        body.put("mempool",      blockchain.getPendingTransactions().size());
-        body.put("chavePublica", wallet.getEnderecoPublico());
-        body.put("nomeTreinador","treinador_" + node.getPortaLocal());
-
+        body.put("height",        blockchain.getUltimoBloco().getHeight());
+        body.put("peers",         node.getVizinhosAtivos().size());
+        body.put("mempool",       blockchain.getPendingTransactions().size());
+        body.put("chavePublica",  wallet.getEnderecoPublico());
+        body.put("nomeTreinador", "treinador_" + node.getPortaLocal());
         responder(ex, 200, body);
     }
 
     // ---------------------------------------------------------------
-    // GET /inventario          → inventário local
-    // GET /inventario/{chave}  → inventário de outro treinador
+    // GET /inventario         → inventário local
+    // GET /inventario/{addr}  → proxy para /inventario do nó rival
+    //    addr = "IP:portaP2P" ex: "127.0.0.1:8082"
     // ---------------------------------------------------------------
     private void handleInventario(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
 
-        String path  = ex.getRequestURI().getPath();
-        String[] seg = path.split("/");
-
-        PublicKey chave;
-        try {
-            if (seg.length >= 3 && !seg[2].isBlank()) {
-                // /inventario/{chaveBase64}
-                String chaveBase64 = java.net.URLDecoder.decode(seg[2], StandardCharsets.UTF_8);
-                chave = dsid.utils.KeyUtils.stringToPublicKey(chaveBase64);
-            } else {
-                // /inventario → treinador local
-                chave = wallet.getChavePublica();
+        // Lê query string: /inventario?peer=127.0.0.1%3A8082
+        String query = ex.getRequestURI().getQuery();
+        String peerParam = null;
+        if (query != null) {
+            for (String param : query.split("&")) {
+                if (param.startsWith("peer=")) {
+                    peerParam = java.net.URLDecoder.decode(
+                        param.substring(5), StandardCharsets.UTF_8);
+                    break;
+                }
             }
-        } catch (Exception e) {
-            responder(ex, 400, Map.of("erro", "Chave pública inválida: " + e.getMessage()));
+        }
+
+        // ── Inventário LOCAL ────────────────────────────────────────
+        if (peerParam == null || peerParam.isBlank()) {
+            List<String> trocas      = repository.getInventarioDoTreinador(wallet.getChavePublica());
+            List<String> recompensas = repository.getPokemonsRecompensaDoMinerador(wallet.getChavePublica());
+
+            Set<String> todos = new LinkedHashSet<>();
+            todos.addAll(trocas);
+            todos.addAll(recompensas);
+
+            List<Map<String, Object>> lista = new ArrayList<>();
+            for (String nome : todos) {
+                if (nome.startsWith("CAPTURA_") || nome.equals("__MINE__")) continue;
+                Map<String, Object> p = new LinkedHashMap<>();
+                p.put("nome", nome);
+                p.put("id",   pokemonNameToId(nome));
+                lista.add(p);
+            }
+            responder(ex, 200, Map.of("pokemon", lista,
+                                       "chave",   wallet.getEnderecoPublico()));
             return;
         }
 
-        List<String> pokemons     = repository.getInventarioDoTreinador(chave);
-        List<String> recompensas  = repository.getPokemonsRecompensaDoMinerador(chave);
+        // ── Inventário do RIVAL — proxy HTTP ───────────────────────
+        String invUrl = "";
+        try {
+            String[] partes = peerParam.split(":");
+            int portaP2P    = Integer.parseInt(partes[1].trim());
+            int portaRest   = 9000 + (portaP2P - 8000);
+            invUrl = "http://127.0.0.1:" + portaRest + "/inventario";
 
-        // Une inventário de trocas + recompensas de mineração
-        Set<String> todos = new LinkedHashSet<>();
-        todos.addAll(pokemons);
-        todos.addAll(recompensas);
+            System.out.println("[REST] Proxy inventario → " + invUrl);
 
-        // Monta lista com id numérico para a PokeAPI
-        List<Map<String, Object>> lista = new ArrayList<>();
-        for (String nome : todos) {
-            Map<String, Object> p = new LinkedHashMap<>();
-            p.put("nome", nome);
-            p.put("id",   pokemonNameToId(nome));
-            lista.add(p);
+            java.net.HttpURLConnection conn =
+                (java.net.HttpURLConnection) new java.net.URL(invUrl).openConnection();
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setRequestMethod("GET");
+
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                String json  = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                // Não adiciona CORS aqui — já foi adicionado pelo method() acima
+                responder(ex, 200, com.google.gson.JsonParser.parseString(json));
+            } else {
+                System.err.println("[REST] Proxy retornou HTTP " + code + " de " + invUrl);
+                responder(ex, 502, Map.of("erro", "Peer retornou HTTP " + code));
+            }
+        } catch (Exception e) {
+            System.err.println("[REST] Proxy erro: " + e.getMessage() + " | URL: " + invUrl);
+            responder(ex, 502, Map.of("erro", "Nao foi possivel contatar o peer: " + e.getMessage()));
         }
-
-        responder(ex, 200, Map.of("pokemon", lista,
-                                   "chave",   KeyUtils.publicKeyToString(chave)));
     }
 
     // ---------------------------------------------------------------
@@ -141,7 +152,48 @@ public class RestServer {
     // ---------------------------------------------------------------
     private void handlePeers(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
-        responder(ex, 200, Map.of("peers", node.getVizinhosAtivos()));
+
+        List<Map<String, Object>> lista = new ArrayList<>();
+
+        for (String endpoint : node.getVizinhosAtivos()) {
+            Map<String, Object> peer = new LinkedHashMap<>();
+            peer.put("endereco", endpoint);
+
+            String statusUrl = "";
+            try {
+                String[] partes = endpoint.split(":");
+                int portaP2P    = Integer.parseInt(partes[1].trim());
+                int portaRest   = 9000 + (portaP2P - 8000);
+                statusUrl = "http://127.0.0.1:" + portaRest + "/status";
+
+                java.net.HttpURLConnection conn =
+                    (java.net.HttpURLConnection) new java.net.URL(statusUrl).openConnection();
+                conn.setConnectTimeout(1500);
+                conn.setReadTimeout(1500);
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    String json = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> st = GSON.fromJson(json, Map.class);
+                    peer.put("nome",         st.getOrDefault("nomeTreinador", endpoint));
+                    peer.put("chavePublica", st.getOrDefault("chavePublica",  ""));
+                    peer.put("height",       st.getOrDefault("height",        0));
+                    peer.put("online",       true);
+                } else {
+                    peer.put("nome",   endpoint);
+                    peer.put("online", false);
+                }
+            } catch (Exception e) {
+                System.err.println("[REST] Peers status erro: " + e.getMessage() + " | " + statusUrl);
+                peer.put("nome",   endpoint);
+                peer.put("online", false);
+            }
+
+            lista.add(peer);
+        }
+
+        responder(ex, 200, Map.of("peers", lista));
     }
 
     // ---------------------------------------------------------------
@@ -150,28 +202,27 @@ public class RestServer {
     private void handleMinerar(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
-        // Adiciona uma TX de "captura" (self-send) para ter algo na mempool
-        try {
-            dsid.core.Transaction tx = new dsid.core.Transaction(
-                    wallet.getChavePublica(),
-                    wallet.getChavePublica(),
-                    "CAPTURA_" + System.currentTimeMillis());
-            tx.generateSignature(wallet.getChavePrivada());
-            blockchain.adicionarTransacao(tx);
-        } catch (Exception e) {
-            // Se já houver TX pendente de captura, ignora e minera assim mesmo
-        }
-
         dsid.core.Block bloco = miner.minerarBlocoPendente(wallet.getChavePublica());
 
         if (bloco == null) {
-            responder(ex, 400, Map.of("erro", "Mempool vazia ou falha na mineração."));
+            try {
+                dsid.core.Transaction tx = new dsid.core.Transaction(
+                        wallet.getChavePublica(), wallet.getChavePublica(), "__MINE__");
+                tx.generateSignature(wallet.getChavePrivada());
+                blockchain.adicionarTransacao(tx);
+                bloco = miner.minerarBlocoPendente(wallet.getChavePublica());
+            } catch (Exception e) {
+                responder(ex, 400, Map.of("erro", "Falha na mineracao: " + e.getMessage()));
+                return;
+            }
+        }
+
+        if (bloco == null) {
+            responder(ex, 400, Map.of("erro", "Falha na mineracao."));
             return;
         }
 
-        // Propaga o bloco para a rede
-        String blocoJson = BlockchainSerializer.serializarBloco(bloco);
-        node.broadcast("NEW_BLOCK|" + blocoJson);
+        node.broadcast("NEW_BLOCK|" + BlockchainSerializer.serializarBloco(bloco));
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("sucesso",       true);
@@ -184,40 +235,31 @@ public class RestServer {
 
     // ---------------------------------------------------------------
     // POST /transacao
-    // Body JSON: { "destinatario": "<chaveBase64>", "idPokemon": "Pikachu" }
     // ---------------------------------------------------------------
     private void handleTransacao(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
         String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = GSON.fromJson(bodyStr, Map.class);
 
-        Map<?, ?> body;
-        try {
-            body = GSON.fromJson(bodyStr, Map.class);
-        } catch (Exception e) {
-            responder(ex, 400, Map.of("erro", "JSON inválido"));
-            return;
-        }
+        if (body == null) { responder(ex, 400, Map.of("erro", "JSON invalido")); return; }
 
         String destBase64 = (String) body.get("destinatario");
         String idPokemon  = (String) body.get("idPokemon");
 
         if (destBase64 == null || idPokemon == null) {
-            responder(ex, 400, Map.of("erro", "Campos 'destinatario' e 'idPokemon' são obrigatórios."));
+            responder(ex, 400, Map.of("erro", "Campos 'destinatario' e 'idPokemon' obrigatorios."));
             return;
         }
 
         try {
             PublicKey destKey = KeyUtils.stringToPublicKey(destBase64);
-
             dsid.core.Transaction tx = new dsid.core.Transaction(
                     wallet.getChavePublica(), destKey, idPokemon);
             tx.generateSignature(wallet.getChavePrivada());
             blockchain.adicionarTransacao(tx);
-
-            // Propaga a TX para a rede via Gossip
-            String txJson = BlockchainSerializer.serializarTransacao(tx);
-            node.broadcast("TX|" + txJson);
+            node.broadcast("TX|" + BlockchainSerializer.serializarTransacao(tx));
 
             responder(ex, 200, Map.of(
                     "sucesso",       true,
@@ -234,11 +276,8 @@ public class RestServer {
     // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
-
-    /** Verifica método HTTP e adiciona headers CORS em toda resposta. */
     private boolean method(HttpExchange ex, String esperado) throws IOException {
-        // CORS — permite chamadas do frontend React (localhost:3000)
-        ex.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        ex.getResponseHeaders().add("Access-Control-Allow-Origin",  "*");
         ex.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         ex.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
         ex.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
@@ -248,7 +287,7 @@ public class RestServer {
             return false;
         }
         if (!esperado.equals(ex.getRequestMethod())) {
-            responder(ex, 405, Map.of("erro", "Método não permitido"));
+            responder(ex, 405, Map.of("erro", "Metodo nao permitido"));
             return false;
         }
         return true;
@@ -260,19 +299,19 @@ public class RestServer {
         try (OutputStream os = ex.getResponseBody()) { os.write(bytes); }
     }
 
-    /** Mapeia nome de Pokémon para ID numérico da PokeAPI. */
     private static final Map<String, Integer> POKEMON_IDS = new HashMap<>();
     static {
-        POKEMON_IDS.put("Bulbasaur",  1);   POKEMON_IDS.put("Charmander", 4);
-        POKEMON_IDS.put("Squirtle",   7);   POKEMON_IDS.put("Pikachu",   25);
-        POKEMON_IDS.put("Eevee",    133);   POKEMON_IDS.put("Meowth",    52);
-        POKEMON_IDS.put("Psyduck",   54);   POKEMON_IDS.put("Geodude",   74);
-        POKEMON_IDS.put("Machop",    66);   POKEMON_IDS.put("Gastly",    92);
-        POKEMON_IDS.put("Magikarp", 129);   POKEMON_IDS.put("Ditto",    132);
-        POKEMON_IDS.put("Snorlax",  143);   POKEMON_IDS.put("Lapras",   131);
-        POKEMON_IDS.put("Jolteon",  135);   POKEMON_IDS.put("Flareon",  136);
-        POKEMON_IDS.put("Vaporeon", 134);   POKEMON_IDS.put("Porygon",  137);
-        POKEMON_IDS.put("Mew",      151);   POKEMON_IDS.put("Dragonite",149);
+        POKEMON_IDS.put("Bulbasaur",  1);  POKEMON_IDS.put("Charmander",  4);
+        POKEMON_IDS.put("Squirtle",   7);  POKEMON_IDS.put("Pikachu",    25);
+        POKEMON_IDS.put("Eevee",    133);  POKEMON_IDS.put("Meowth",     52);
+        POKEMON_IDS.put("Psyduck",   54);  POKEMON_IDS.put("Geodude",    74);
+        POKEMON_IDS.put("Machop",    66);  POKEMON_IDS.put("Gastly",     92);
+        POKEMON_IDS.put("Magikarp", 129);  POKEMON_IDS.put("Ditto",     132);
+        POKEMON_IDS.put("Snorlax",  143);  POKEMON_IDS.put("Lapras",    131);
+        POKEMON_IDS.put("Jolteon",  135);  POKEMON_IDS.put("Flareon",   136);
+        POKEMON_IDS.put("Vaporeon", 134);  POKEMON_IDS.put("Porygon",   137);
+        POKEMON_IDS.put("Mew",      151);  POKEMON_IDS.put("Dragonite", 149);
+        POKEMON_IDS.put("__MINE__",   0);
     }
 
     private int pokemonNameToId(String nome) {

@@ -45,6 +45,11 @@ public class Main {
         int portaP2P  = Integer.parseInt(args[0]);
         int portaRest = 9000 + (portaP2P - 8000); // ex: 8081 → 9081
 
+        // Banco de dados exclusivo por nó — evita compartilhamento de estado
+        String nomeDb = "blockchain_" + portaP2P + ".db";
+        dsid.storage.SQLiteConnection.setDbName(nomeDb);
+        System.out.println("[STORAGE] Banco de dados: " + nomeDb);
+
         System.out.println("╔══════════════════════════════════════╗");
         System.out.printf( "║    PokeEach Node — P2P %-5d  REST %-4d║%n", portaP2P, portaRest);
         System.out.println("╚══════════════════════════════════════╝");

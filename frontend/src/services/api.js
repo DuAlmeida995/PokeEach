@@ -1,12 +1,3 @@
-/**
- * Camada de comunicação com o backend Java.
- * A porta REST é 9000 + (portaP2P - 8000):
- *   nó 8081 → REST 9081
- *   nó 8082 → REST 9082
- *
- * Em desenvolvimento, aponta para o nó local na porta configurada.
- */
-
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:9081'
 
 async function get(path) {
@@ -28,50 +19,26 @@ async function post(path, body) {
   return res.json()
 }
 
-// ── Endpoints ──────────────────────────────────────────────────────
-
-/** Retorna status do nó: height, peers, mempool, chavePublica, nomeTreinador */
-export async function getStatus() {
-  return get('/status')
-}
-
-/** Retorna inventário do treinador local */
-export async function getMeuInventario() {
-  return get('/inventario')
-}
-
-/** Retorna inventário de outro treinador pela chave pública Base64 */
-export async function getInventarioRival(chaveBase64) {
-  const chaveEncoded = encodeURIComponent(chaveBase64)
-  return get(`/inventario/${chaveEncoded}`)
-}
-
-/** Retorna lista de peers ativos: ["127.0.0.1:8082", ...] */
-export async function getPeers() {
-  return get('/peers')
-}
+export async function getStatus()              { return get('/status') }
+export async function getMeuInventario()       { return get('/inventario') }
+export async function getPeers()               { return get('/peers') }
+export async function minerar()                { return post('/minerar', {}) }
 
 /**
- * Minera um bloco.
- * Retorna: { sucesso, height, hash, rewardPokemon, rewardId }
+ * Busca inventário de um peer pelo seu endereço IP:porta P2P.
+ * O backend faz o proxy para o /inventario do nó do rival.
  */
-export async function minerar() {
-  return post('/minerar', {})
+export async function getInventarioRival(enderecoP2P) {
+  const encoded = encodeURIComponent(enderecoP2P)
+  return get(`/inventario?peer=${encoded}`)
 }
 
-/**
- * Envia uma transação de troca.
- * @param {string} destinatario - chave pública Base64 do destinatário
- * @param {string} idPokemon    - nome do Pokémon a transferir
- * Retorna: { sucesso, transactionId, pokemon }
- */
-export async function enviarTransacao(destinatario, idPokemon) {
-  return post('/transacao', { destinatario, idPokemon })
+export async function enviarTransacao(destinatarioChave, idPokemon) {
+  return post('/transacao', { destinatario: destinatarioChave, idPokemon })
 }
-
-// ── Utilitários ────────────────────────────────────────────────────
 
 export function getSpriteUrl(pokemonId) {
+  if (!pokemonId || pokemonId <= 0) return ''
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`
 }
 
@@ -80,10 +47,10 @@ export async function fetchPokemonStats(pokemonId) {
     const res  = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`)
     const data = await res.json()
     return {
-      hp:     data.stats.find(s => s.stat.name === 'hp')?.base_stat       ?? '—',
-      ataque: data.stats.find(s => s.stat.name === 'attack')?.base_stat   ?? '—',
-      defesa: data.stats.find(s => s.stat.name === 'defense')?.base_stat  ?? '—',
-      veloc:  data.stats.find(s => s.stat.name === 'speed')?.base_stat    ?? '—',
+      hp:     data.stats.find(s => s.stat.name === 'hp')?.base_stat      ?? '—',
+      ataque: data.stats.find(s => s.stat.name === 'attack')?.base_stat  ?? '—',
+      defesa: data.stats.find(s => s.stat.name === 'defense')?.base_stat ?? '—',
+      veloc:  data.stats.find(s => s.stat.name === 'speed')?.base_stat   ?? '—',
       tipo:   data.types.map(t => t.type.name).join(' / '),
     }
   } catch {
