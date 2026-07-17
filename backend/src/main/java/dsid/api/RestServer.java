@@ -31,6 +31,9 @@ public class RestServer {
     private final MiningService    miner;
     private final Wallet           wallet;
 
+    // Estado de troca pendente (solicitação recebida aguardando resposta)
+    private volatile Map<String, Object> trocaPendente = null;
+
     public RestServer(int porta, P2PNode node, Blockchain blockchain,
                       LedgerRepository repository, MiningService miner, Wallet wallet)
             throws IOException {
@@ -49,7 +52,12 @@ public class RestServer {
         server.createContext("/inventario/", this::handleInventario);
         server.createContext("/peers",      this::handlePeers);
         server.createContext("/minerar",    this::handleMinerar);
-        server.createContext("/transacao",  this::handleTransacao);
+        server.createContext("/transacao",       this::handleTransacao);
+        server.createContext("/troca/solicitar", this::handleTrocaSolicitar);
+        server.createContext("/troca/receber",   this::handleTrocaReceber);
+        server.createContext("/troca/confirmar", this::handleTrocaConfirmar);
+        server.createContext("/troca/pendente",  this::handleTrocaPendente);
+        server.createContext("/troca/responder", this::handleTrocaResponder);
     }
 
     public void iniciar() {
@@ -268,6 +276,195 @@ public class RestServer {
 
         } catch (IllegalStateException e) {
             responder(ex, 409, Map.of("erro", "Double-spend: " + e.getMessage()));
+        } catch (Exception e) {
+            responder(ex, 500, Map.of("erro", e.getMessage()));
+        }
+    }
+
+
+    // ---------------------------------------------------------------
+    // POST /troca/solicitar
+    // Envia solicitação de troca para o nó rival via HTTP
+    // body: { enderecoRival, meuPokemon, pokemonSolicitado }
+    // ---------------------------------------------------------------
+    private void handleTrocaSolicitar(HttpExchange ex) throws IOException {
+        if (!method(ex, "POST")) return;
+
+        String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = GSON.fromJson(bodyStr, Map.class);
+
+        String enderecoRival    = (String) body.get("enderecoRival");
+        String meuPokemon       = (String) body.get("meuPokemon");
+        String pokemonSolicitado= (String) body.get("pokemonSolicitado");
+
+        if (enderecoRival == null || meuPokemon == null || pokemonSolicitado == null) {
+            responder(ex, 400, Map.of("erro", "Campos obrigatorios ausentes."));
+            return;
+        }
+
+        try {
+            String[] partes  = enderecoRival.split(":");
+            int portaP2P     = Integer.parseInt(partes[1].trim());
+            int portaRest    = 9000 + (portaP2P - 8000);
+            String url       = "http://127.0.0.1:" + portaRest + "/troca/receber";
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("remetente",        "treinador_" + node.getPortaLocal());
+            payload.put("chaveRemetente",   wallet.getEnderecoPublico());
+            payload.put("pokemonOferecido", meuPokemon);
+            payload.put("pokemonSolicitado",pokemonSolicitado);
+            payload.put("enderecoRemetente","127.0.0.1:" + node.getPortaLocal());
+
+            byte[] payloadBytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
+
+            java.net.HttpURLConnection conn =
+                (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write(payloadBytes);
+
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                responder(ex, 200, Map.of("sucesso", true, "mensagem", "Solicitacao enviada ao rival."));
+            } else {
+                responder(ex, 502, Map.of("erro", "Rival retornou HTTP " + code));
+            }
+        } catch (Exception e) {
+            responder(ex, 502, Map.of("erro", "Nao foi possivel contatar o rival: " + e.getMessage()));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // POST /troca/receber  (chamado pelo nó do solicitante diretamente)
+    // Armazena a solicitação pendente para o frontend consultar
+    // ---------------------------------------------------------------
+    private void handleTrocaReceber(HttpExchange ex) throws IOException {
+        if (!method(ex, "POST")) return;
+        String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = GSON.fromJson(bodyStr, Map.class);
+        trocaPendente = body;
+        System.out.println("[REST] Solicitacao de troca recebida de: " + body.get("remetente"));
+        responder(ex, 200, Map.of("sucesso", true));
+    }
+
+    // ---------------------------------------------------------------
+    // GET /troca/pendente
+    // Frontend consulta se há solicitação pendente
+    // ---------------------------------------------------------------
+    private void handleTrocaPendente(HttpExchange ex) throws IOException {
+        if (!method(ex, "GET")) return;
+        if (trocaPendente != null) {
+            Map<String, Object> resp = new LinkedHashMap<>(trocaPendente);
+            resp.put("pendente", true);
+            responder(ex, 200, resp);
+        } else {
+            responder(ex, 200, Map.of("pendente", false));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // POST /troca/responder
+    // body: { aceitar: true/false }
+    // ---------------------------------------------------------------
+    private void handleTrocaResponder(HttpExchange ex) throws IOException {
+        if (!method(ex, "POST")) return;
+
+        String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = GSON.fromJson(bodyStr, Map.class);
+        boolean aceitar = Boolean.TRUE.equals(body.get("aceitar"));
+
+        if (trocaPendente == null) {
+            responder(ex, 400, Map.of("erro", "Nenhuma troca pendente."));
+            return;
+        }
+
+        if (!aceitar) {
+            System.out.println("[REST] Troca recusada pelo treinador local.");
+            trocaPendente = null;
+            responder(ex, 200, Map.of("sucesso", true, "aceito", false));
+            return;
+        }
+
+        // Aceita: executa as duas TXs — uma em cada direção
+        try {
+            String chaveRemetente    = (String) trocaPendente.get("chaveRemetente");
+            String pokemonOferecido  = (String) trocaPendente.get("pokemonOferecido");
+            String pokemonSolicitado = (String) trocaPendente.get("pokemonSolicitado");
+            String enderecoRemetente = (String) trocaPendente.get("enderecoRemetente");
+
+            // TX 1: remetente → eu (pokemonOferecido vem para mim)
+            dsid.core.PublicKey chaveRem = dsid.utils.KeyUtils.stringToPublicKey(chaveRemetente);
+            // Nota: a TX de transferência do remetente para mim será criada pelo remetente
+            // Aqui criamos apenas a nossa TX de envio do pokemonSolicitado para o remetente
+
+            // TX local: eu envio pokemonSolicitado para o remetente
+            dsid.core.Transaction txLocal = new dsid.core.Transaction(
+                    wallet.getChavePublica(), chaveRem, pokemonSolicitado);
+            txLocal.generateSignature(wallet.getChavePrivada());
+            blockchain.adicionarTransacao(txLocal);
+            node.broadcast("TX|" + dsid.network.BlockchainSerializer.serializarTransacao(txLocal));
+
+            // Notifica o remetente para criar a TX dele (pokemonOferecido → eu)
+            String[] partes  = enderecoRemetente.split(":");
+            int portaRest    = 9000 + (Integer.parseInt(partes[1].trim()) - 8000);
+            String urlConf   = "http://127.0.0.1:" + portaRest + "/troca/confirmar";
+
+            Map<String, Object> conf = Map.of(
+                "chaveDestinatario", wallet.getEnderecoPublico(),
+                "pokemon",           pokemonOferecido
+            );
+            byte[] confBytes = GSON.toJson(conf).getBytes(StandardCharsets.UTF_8);
+
+            java.net.HttpURLConnection conn =
+                (java.net.HttpURLConnection) new java.net.URL(urlConf).openConnection();
+            conn.setConnectTimeout(2000);
+            conn.setReadTimeout(2000);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write(confBytes);
+            conn.getResponseCode();
+
+            trocaPendente = null;
+            System.out.println("[REST] Troca aceita! TX criadas.");
+            responder(ex, 200, Map.of("sucesso", true, "aceito", true));
+
+        } catch (Exception e) {
+            responder(ex, 500, Map.of("erro", "Erro ao executar troca: " + e.getMessage()));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // POST /troca/confirmar
+    // Chamado pelo receptor quando aceita — solicita ao remetente criar sua TX
+    // body: { chaveDestinatario, pokemon }
+    // ---------------------------------------------------------------
+    private void handleTrocaConfirmar(HttpExchange ex) throws IOException {
+        if (!method(ex, "POST")) return;
+
+        String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = GSON.fromJson(bodyStr, Map.class);
+
+        String chaveDestStr = (String) body.get("chaveDestinatario");
+        String pokemon      = (String) body.get("pokemon");
+
+        try {
+            dsid.core.PublicKey chaveDest = dsid.utils.KeyUtils.stringToPublicKey(chaveDestStr);
+            dsid.core.Transaction tx = new dsid.core.Transaction(
+                    wallet.getChavePublica(), chaveDest, pokemon);
+            tx.generateSignature(wallet.getChavePrivada());
+            blockchain.adicionarTransacao(tx);
+            node.broadcast("TX|" + dsid.network.BlockchainSerializer.serializarTransacao(tx));
+
+            System.out.println("[REST] TX de confirmacao criada: " + pokemon + " → destinatario");
+            responder(ex, 200, Map.of("sucesso", true));
         } catch (Exception e) {
             responder(ex, 500, Map.of("erro", e.getMessage()));
         }

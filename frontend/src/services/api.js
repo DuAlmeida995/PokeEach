@@ -57,3 +57,16 @@ export async function fetchPokemonStats(pokemonId) {
     return { hp: '—', ataque: '—', defesa: '—', veloc: '—', tipo: '—' }
   }
 }
+
+/** Verifica se há uma solicitação de troca pendente para este nó */
+export async function getNotificacaoTroca() { return get('/troca/pendente') }
+
+/** Responde a uma solicitação de troca pendente */
+export async function responderTroca(aceitar) {
+  return post('/troca/responder', { aceitar })
+}
+
+/** Envia solicitação de troca bilateral para o rival */
+export async function enviarSolicitacaoTroca(enderecoRival, meuPokemon, pokemonSolicitado) {
+  return post('/troca/solicitar', { enderecoRival, meuPokemon, pokemonSolicitado })
+}

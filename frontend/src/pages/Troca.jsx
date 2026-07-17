@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getSpriteUrl, getInventarioRival, enviarTransacao } from '../services/api'
+import { getSpriteUrl, getInventarioRival, enviarSolicitacaoTroca } from '../services/api'
 
 export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVoltar }) {
   const [rivalSelecionado, setRivalSelecionado] = useState(usuarioInicial || null)
@@ -37,10 +37,12 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
     setEnviando(true)
     setErro(null)
     try {
-      // Usa a chavePublica RSA do rival para a TX
-      const destChave = rivalSelecionado.chavePublica
-      if (!destChave) throw new Error('Chave pública do rival não disponível.')
-      await enviarTransacao(destChave, meuPokemon.nome)
+      // Envia solicitação de troca bilateral — o rival precisa aceitar
+      await enviarSolicitacaoTroca(
+        rivalSelecionado.chave,      // endereço P2P do rival (IP:porta)
+        meuPokemon.nome,             // Pokémon que estou oferecendo
+        pokemonRival.nome            // Pokémon que quero receber
+      )
       setSucesso(true)
     } catch (e) {
       setErro(e.message)
@@ -207,7 +209,7 @@ function TelaSucesso({ meuPokemon, pokemonRival, onVoltar }) {
       gap: '24px', height: '100vh',
     }}>
       <p style={{ fontFamily: 'var(--font)', fontSize: '10px', color: '#F8C800', textAlign: 'center', lineHeight: 2 }}>
-        Troca realizada!<br />TX enviada à rede ✓
+        Solicitação enviada!<br />Aguardando o rival aceitar ✓
       </p>
       {pokemonRival && <PokemonTradeCard titulo="você recebeu" pokemon={pokemonRival} />}
       <button onClick={onVoltar} style={{
