@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/crypto/Wallet.java
 package dsid.crypto;
 
 import java.security.KeyPair;
@@ -9,23 +8,21 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * Carteira criptográfica do Treinador.
+ * carteira criptografica do treinador.
  *
- * Na primeira execução gera um par RSA-2048 e persiste no disco via
- * {@link KeyPairManager}. Nas execuções seguintes carrega o par salvo,
- * garantindo identidade persistente entre sessões.
+ * na primeira execucao gera um par RSA-2048 e persiste no disco via
+ * {@link KeyPairManager}
+ * nas execucoes seguintes carrega o par salvo,
+ * garantindo identidade persistente entre sessoes
  *
- * A chave pública funciona como o "endereço" público do treinador na rede.
- * A chave privada assina as transações de troca de Pokémon.
+ * a chave publica funciona como o "endereco" publico do treinador na rede
+ * a chave privada assina as transacoes de troca de Pokemon
  */
 public class Wallet {
 
     private PrivateKey chavePrivada;
     private PublicKey  chavePublica;
 
-    // ---------------------------------------------------------------
-    // Construtor
-    // ---------------------------------------------------------------
     public Wallet(String nomeTreinador) {
         if (KeyPairManager.chavesExistem(nomeTreinador)) {
             System.out.println("[WALLET] Save encontrado! Carregando identidade de: " + nomeTreinador);
@@ -38,9 +35,6 @@ public class Wallet {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Geração do par de chaves
-    // ---------------------------------------------------------------
     private void gerarParDeChaves() {
         try {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
@@ -55,20 +49,10 @@ public class Wallet {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Utilitário
-    // ---------------------------------------------------------------
-    /**
-     * Retorna a chave pública codificada em Base64.
-     * Equivalente ao "ID de Treinador" exibido na tela do jogo.
-     */
     public String getEnderecoPublico() {
         return Base64.getEncoder().encodeToString(chavePublica.getEncoded());
     }
 
-    // ---------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------
     public PrivateKey getChavePrivada() { return chavePrivada; }
     public PublicKey  getChavePublica() { return chavePublica; }
 }

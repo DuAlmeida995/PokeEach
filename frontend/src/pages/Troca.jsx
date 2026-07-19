@@ -11,14 +11,14 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
   const [sucesso,          setSucesso]           = useState(false)
   const [erro,             setErro]              = useState(null)
 
-  // Reage quando usuário clica num treinador na sidebar estando na tela de troca
+  // reage quando usuario clica num treinador na sidebar estando na tela de troca
   useEffect(() => {
     if (usuarioAtivo && usuarioAtivo.chave !== rivalSelecionado?.chave) {
       setRivalSelecionado(usuarioAtivo)
     }
   }, [usuarioAtivo])
 
-  // Carrega inventário do rival
+  // carrega inventario do rival
   useEffect(() => {
     if (!rivalSelecionado?.chave) return
     setCarregando(true)
@@ -81,10 +81,10 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
         alignItems: 'center', justifyContent: 'center',
         gap: '20px', padding: '16px', overflowY: 'auto',
       }}>
-        {/* Meu Pokémon */}
+        {/* Meu Pokemon */}
         <PokemonTradeCard titulo="Você oferece" pokemon={meuPokemon} showIVs />
 
-        {/* Pokébola */}
+        {/* Pokebola */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
           <img
             src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png"
@@ -98,7 +98,7 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
           <span style={{ fontFamily: 'var(--font)', fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>⇄</span>
         </div>
 
-        {/* Lado do rival */}
+        {/* Lado do outro treinador */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', maxWidth: '320px' }}>
           {rivalSelecionado ? (
             <>
@@ -141,7 +141,7 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
                 </div>
               )}
 
-              {/* IVs do Pokémon do rival selecionado */}
+              {/* IVs do Pokemon do rival selecionado */}
               {pokemonRival && (
                 <PokemonTradeCard titulo="Você recebe" pokemon={pokemonRival} showIVs />
               )}

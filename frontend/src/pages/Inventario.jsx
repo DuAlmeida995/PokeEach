@@ -21,7 +21,7 @@ export default function Inventario({ onIrParaTroca, notificacaoTroca, onAceitarT
   return (
     <div style={{ display: 'flex', flex: 1, height: '100vh', overflow: 'hidden', position: 'relative' }}>
 
-      {/* Notificação de troca */}
+      {/* Notificacao de troca */}
       {notificacaoTroca && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -38,10 +38,10 @@ export default function Inventario({ onIrParaTroca, notificacaoTroca, onAceitarT
               Solicitação de Troca!
             </p>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              {/* Pokémon oferecido */}
+              {/* Pokemon oferecido */}
               <PokemonMiniCard nome={notificacaoTroca.pokemonOferecido} label="receber" />
               <span style={{ fontFamily: 'var(--font)', fontSize: '12px', color: '#555' }}>⇄</span>
-              {/* Pokémon solicitado */}
+              {/* Pokemon solicitado */}
               <PokemonMiniCard nome={notificacaoTroca.pokemonSolicitado} label="entregar" />
             </div>
             <p style={{ fontFamily: 'var(--font)', fontSize: '6px', color: '#666', textAlign: 'center', lineHeight: 2 }}>
@@ -101,16 +101,20 @@ export default function Inventario({ onIrParaTroca, notificacaoTroca, onAceitarT
           flex: 1, overflowY: 'auto',
           display: 'flex', flexDirection: 'column', gap: '4px',
         }}>
-          {selecionado && selecionado.hp !== undefined ? (
-            <IVDisplay pokemon={selecionado} />
-          ) : (
+          {!selecionado ? (
             <p style={{ fontFamily: 'var(--font)', fontSize: '7px', color: '#555', textAlign: 'center', marginTop: '16px' }}>
               {inventario.length === 0 ? 'Mine um Pokémon!' : 'Selecione um Pokémon'}
+            </p>
+          ) : selecionado.hp !== undefined ? (
+            <IVDisplay pokemon={selecionado} />
+          ) : (
+            <p style={{ fontFamily: 'var(--font)', fontSize: '6px', color: '#888', textAlign: 'center', marginTop: '16px', lineHeight: 2 }}>
+              Mine um novo Pokémon<br />para ver os IVs
             </p>
           )}
         </div>
 
-        {/* Botão Trocar */}
+        {/* Botao Trocar */}
         <button
           onClick={() => selecionado && onIrParaTroca(selecionado)}
           disabled={!selecionado}
@@ -126,7 +130,7 @@ export default function Inventario({ onIrParaTroca, notificacaoTroca, onAceitarT
         </button>
       </div>
 
-      {/* ── Grade ── */}
+      {/* Grade */}
       <div style={{
         flex: 1,
         background: `repeating-linear-gradient(0deg,transparent,transparent 15px,rgba(0,0,0,0.06) 15px,rgba(0,0,0,0.06) 16px),
@@ -162,7 +166,11 @@ export default function Inventario({ onIrParaTroca, notificacaoTroca, onAceitarT
               <PokemonCard
                 key={`${p.id}-${i}`}
                 pokemon={p}
-                selecionado={selecionado?.nomeCompleto === p.nomeCompleto}
+                selecionado={
+                  selecionado?.nomeCompleto
+                    ? selecionado.nomeCompleto === p.nomeCompleto
+                    : selecionado?.nome === p.nome && selecionado?.id === p.id
+                }
                 onClick={setSelecionado}
               />
             ))

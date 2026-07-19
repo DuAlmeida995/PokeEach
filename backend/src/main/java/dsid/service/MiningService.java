@@ -93,13 +93,15 @@ public class MiningService {
         novoBloco.mineBlock(difficulty);
 
         // Deriva o Pokémon deterministicamente do hash final
-        String pokemon = derivarPokemonDoHash(novoBloco.getHash());
-        novoBloco.setRewardPokemonFromDb(pokemon);
-        // Recalcula o hash incluindo o rewardPokemon
+        String nomeBase = derivarPokemonDoHash(novoBloco.getHash());
+
+        // Deriva IVs únicos a partir do hash — busca stats base na PokeAPI
+        System.out.println("[MINING] Buscando stats base de " + nomeBase + " na PokeAPI...");
+        String pokemonComIVs = derivarPokemonComIVsDoHash(novoBloco.getHash(), nomeBase);
+        novoBloco.setRewardPokemonFromDb(pokemonComIVs);
         novoBloco.recalcularHashComReward();
 
-        System.out.println("[MINING] Pokémon de recompensa: " + pokemon
-                + " (derivado do hash — consistente em toda a rede)");
+        System.out.println("[MINING] Pokémon de recompensa: " + pokemonComIVs);
 
         // Registra na cadeia e limpa mempool
         blockchain.adicionarBlocoMinerado(novoBloco);
@@ -119,20 +121,111 @@ public class MiningService {
 
     /**
      * Deriva o Pokémon de recompensa a partir do hash do bloco.
-     *
-     * Qualquer nó que receba o mesmo bloco vai chamar este método
-     * e obter o mesmo resultado — sem estado local, sem Random.
-     *
-     * Algoritmo: soma os bytes do hash (interpretados como unsigned)
-     * e usa módulo pelo tamanho do pool.
+     * Determinístico — qualquer nó obtém o mesmo resultado para o mesmo hash.
      */
     public static String derivarPokemonDoHash(String blockHash) {
         long soma = 0;
-        for (char c : blockHash.toCharArray()) {
-            soma += c;
-        }
+        for (char c : blockHash.toCharArray()) soma += c;
         int index = (int)(Math.abs(soma) % REWARD_POKEMON.length);
         return REWARD_POKEMON[index];
+    }
+
+    /**
+     * Deriva IVs únicos para o Pokémon a partir do hash do bloco.
+     *
+     * Cada IV vai de 0 até o valor máximo do stat base do Pokémon na PokeAPI,
+     * tornando cada exemplar um NFT único dentro do seu potencial real.
+     *
+     * Os 6 IVs são extraídos de posições diferentes do hash (cada par de chars
+     * como hex unsigned), garantindo independência entre os valores.
+     *
+     * Formato retornado: "NomePokemon|hp:X|atk:Y|def:Z|spa:W|spd:V|spe:U"
+     */
+    public static String derivarPokemonComIVsDoHash(String blockHash, String nomePokemon) {
+        // Busca os stats base do Pokémon via PokeAPI de forma síncrona
+        int[] baseStats = buscarBaseStats(nomePokemon);
+
+        // Extrai 6 valores do hash usando pares de chars em posições distribuídas
+        int[] ivs = new int[6];
+        int hashLen = blockHash.length();
+        int[] offsets = {12, 20, 28, 36, 44, 52};
+        for (int i = 0; i < 6; i++) {
+            int pos = offsets[i] % (hashLen - 1);
+            // Lê 2 chars do hash como valor hex (0-255)
+            int hexVal = Integer.parseInt(blockHash.substring(pos, pos + 2), 16);
+            int maxStat = baseStats[i] > 0 ? baseStats[i] : 100;
+            ivs[i] = hexVal % (maxStat + 1); // 0 até maxStat inclusive
+        }
+
+        return String.format("%s|hp:%d|atk:%d|def:%d|spa:%d|spd:%d|spe:%d",
+                nomePokemon, ivs[0], ivs[1], ivs[2], ivs[3], ivs[4], ivs[5]);
+    }
+
+    /**
+     * Busca os stats base de um Pokémon via PokeAPI.
+     * Ordem retornada: [hp, attack, defense, special-attack, special-defense, speed]
+     * Retorna valores padrão (100) em caso de falha de rede.
+     */
+    private static int[] buscarBaseStats(String nomePokemon) {
+        int[] defaults = {100, 100, 100, 100, 100, 100};
+        try {
+            String nomeApi = nomePokemon.toLowerCase()
+                    .replace("nidoranf", "nidoran-f")
+                    .replace("nidoranm", "nidoran-m")
+                    .replace("mrmime",   "mr-mime")
+                    .replace("farfetchd","farfetch'd");
+
+            java.net.URL url = new java.net.URL("https://pokeapi.co/api/v2/pokemon/" + nomeApi);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setRequestMethod("GET");
+
+            if (conn.getResponseCode() != 200) return defaults;
+
+            String json = new String(conn.getInputStream().readAllBytes(),
+                                     java.nio.charset.StandardCharsets.UTF_8);
+
+            // Estrutura da PokeAPI:
+            // {"base_stat":45,"effort":0,"stat":{"name":"hp","url":"..."}}
+            // O "base_stat" aparece ANTES do "name" do stat no mesmo objeto.
+            // Estratégia: localiza o "name" do stat, depois busca "base_stat"
+            // no bloco que começa ANTES desse name (dentro do mesmo objeto {}).
+            String[] statNames = {"\"name\":\"hp\"", "\"name\":\"attack\"",
+                                  "\"name\":\"defense\"", "\"name\":\"special-attack\"",
+                                  "\"name\":\"special-defense\"", "\"name\":\"speed\""};
+            int[] result = new int[6];
+            for (int i = 0; i < statNames.length; i++) {
+                int nameIdx = json.indexOf(statNames[i]);
+                if (nameIdx < 0) { result[i] = 100; continue; }
+
+                // Acha o início do objeto que contém este stat (última '{' antes do name)
+                int objStart = json.lastIndexOf("{", nameIdx);
+                if (objStart < 0) { result[i] = 100; continue; }
+
+                // Dentro desse bloco, acha "base_stat":
+                int baseIdx = json.lastIndexOf("\"base_stat\":", nameIdx);
+                if (baseIdx < objStart) { result[i] = 100; continue; }
+
+                int numStart = baseIdx + 12;
+                // Valor termina em vírgula ou '}'
+                int numEnd = numStart;
+                while (numEnd < json.length() &&
+                       json.charAt(numEnd) != ',' &&
+                       json.charAt(numEnd) != '}') numEnd++;
+
+                result[i] = Integer.parseInt(json.substring(numStart, numEnd).trim());
+            }
+
+            System.out.println("[MINING] Stats de " + nomePokemon + ": hp=" + result[0]
+                    + " atk=" + result[1] + " def=" + result[2]
+                    + " spa=" + result[3] + " spd=" + result[4] + " spe=" + result[5]);
+            return result;
+
+        } catch (Exception e) {
+            System.out.println("[MINING] Falha ao buscar stats de " + nomePokemon + ": " + e.getMessage());
+            return defaults;
+        }
     }
 
     /**

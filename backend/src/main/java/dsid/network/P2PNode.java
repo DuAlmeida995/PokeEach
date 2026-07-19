@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/network/P2PNode.java
 package dsid.network;
 
 import dsid.core.Blockchain;
@@ -23,9 +22,7 @@ public class P2PNode {
         this.portaLocal = portaLocal;
     }
 
-    // ---------------------------------------------------------------
-    // Ciclo de vida
-    // ---------------------------------------------------------------
+    // ciclo de vida
     public void iniciar() {
         MessageParser parser = new MessageParser(this, repository);
         servidor  = new SocketServer(portaLocal, parser);
@@ -41,7 +38,6 @@ public class P2PNode {
             return;
         }
         System.out.println("[NODE] Iniciando sync com " + vizinhosConhecidos.size() + " vizinhos...");
-        // Inclui portaLocal para que o vizinho saiba onde enviar a CHAIN
         String payload = BlockchainSerializer.serializarGetChain(
                 blockchain.getUltimoBloco().getHeight(), portaLocal);
         for (String vizinho : vizinhosConhecidos) {
@@ -56,9 +52,7 @@ public class P2PNode {
         System.out.println("[NODE] Nó P2P encerrado.");
     }
 
-    // ---------------------------------------------------------------
-    // Gestão de vizinhos
-    // ---------------------------------------------------------------
+    // gestao de vizinhos
     public void adicionarVizinho(String ip, int porta) {
         String endereco = ip + ":" + porta;
         if (!vizinhosConhecidos.contains(endereco)) {
@@ -85,9 +79,7 @@ public class P2PNode {
         return Collections.unmodifiableList(vizinhosConhecidos);
     }
 
-    // ---------------------------------------------------------------
-    // Gossip
-    // ---------------------------------------------------------------
+    // gossip
     public void broadcast(String mensagem) {
         if (vizinhosConhecidos.isEmpty()) return;
         System.out.println("[NODE] Broadcast para " + vizinhosConhecidos.size() + " vizinhos.");
@@ -110,7 +102,6 @@ public class P2PNode {
             if (p.length >= 2)
                 SocketClient.enviarMensagem(p[0], Integer.parseInt(p[1]), "GET_CHAIN|" + payload);
             else
-                // só IP sem porta — tenta todos
                 for (String v : vizinhosConhecidos) {
                     String[] vp = v.split(":");
                     SocketClient.enviarMensagem(vp[0], Integer.parseInt(vp[1]), "GET_CHAIN|" + payload);
@@ -118,9 +109,6 @@ public class P2PNode {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------
     public Blockchain       getBlockchain() { return blockchain; }
     public LedgerRepository getRepository() { return repository; }
     public int              getPortaLocal()  { return portaLocal; }

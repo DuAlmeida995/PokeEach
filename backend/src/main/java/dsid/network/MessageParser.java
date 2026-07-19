@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/network/MessageParser.java
 package dsid.network;
 
 import dsid.core.Block;
@@ -91,7 +90,6 @@ public class MessageParser {
             String hashRecebido  = blocoRecebido.getHash();
             String hashCalculado = blocoRecebido.calculateHash();
 
-            // DEBUG — mostra exatamente o que está divergindo
             if (!hashRecebido.equals(hashCalculado)) {
                 System.out.println("[PARSER] ❌ Hash inválido.");
                 System.out.println("  Recebido:   " + hashRecebido);
@@ -103,7 +101,6 @@ public class MessageParser {
                         + " minerKey="  + blocoRecebido.getMinerKey().substring(0,8)
                         + " reward="    + blocoRecebido.getRewardPokemon()
                         + " txs="       + blocoRecebido.getTransactions().size());
-                // Mostra toString() de cada TX para identificar divergência
                 for (Transaction tx : blocoRecebido.getTransactions()) {
                     System.out.println("  TX.toString: " + tx.toString());
                 }

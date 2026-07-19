@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/app/Main.java
 package dsid.app;
 
 import dsid.api.RestServer;
@@ -15,13 +14,13 @@ import java.io.InputStreamReader;
 import java.util.List;
 
 /**
- * Ponto de entrada da aplicação PokeEach.
+ * Ponto de entrada da aplicacao PokeEach.
  *
  * Uso:
- *   # Nó semente (porta P2P 8081, API REST na 9081):
+ *   # No semente (porta P2P 8081, API REST na 9081):
  *   java -jar pokeeach.jar 8081
  *
- *   # Segundo nó:
+ *   # Segundo no:
  *   java -jar pokeeach.jar 8082 127.0.0.1:8081
  *
  *   # Sem argumentos → modo demo local
@@ -38,14 +37,11 @@ public class Main {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Modo P2P real
-    // ---------------------------------------------------------------
+ 
     private static void modoP2P(String[] args) throws Exception {
         int portaP2P  = Integer.parseInt(args[0]);
-        int portaRest = 9000 + (portaP2P - 8000); // ex: 8081 → 9081
+        int portaRest = 9000 + (portaP2P - 8000); // exemplo: 8081 → 9081
 
-        // Banco de dados exclusivo por nó — evita compartilhamento de estado
         String nomeDb = "blockchain_" + portaP2P + ".db";
         dsid.storage.SQLiteConnection.setDbName(nomeDb);
         System.out.println("[STORAGE] Banco de dados: " + nomeDb);
@@ -61,7 +57,6 @@ public class Main {
         MiningService    miner         = new MiningService(blockchain, repository);
         P2PNode          node          = new P2PNode(blockchain, repository, portaP2P);
 
-        // Adiciona vizinhos passados como argumentos
         for (int i = 1; i < args.length; i++) {
             String[] partes = args[i].split(":");
             node.adicionarVizinho(partes[0], Integer.parseInt(partes[1]));
@@ -69,11 +64,9 @@ public class Main {
 
         node.iniciar();
 
-        // Inicia API REST
         RestServer rest = new RestServer(portaRest, node, blockchain, repository, miner, wallet);
         rest.iniciar();
 
-        // Sincroniza com vizinhos
         Thread.sleep(1000);
         node.syncInicial();
 
@@ -81,7 +74,6 @@ public class Main {
         System.out.println("\n[MAIN] Pressione ENTER para minerar um bloco de teste...");
         br.readLine();
 
-        // Cria TX de teste e minera
         Transaction tx = new Transaction(
                 wallet.getChavePublica(), wallet.getChavePublica(),
                 "CAPTURA_" + System.currentTimeMillis());
@@ -100,9 +92,6 @@ public class Main {
         node.parar();
     }
 
-    // ---------------------------------------------------------------
-    // Modo demo local
-    // ---------------------------------------------------------------
     private static void modoDemo() {
         System.out.println("╔══════════════════════════════════════╗");
         System.out.println("║       PokeEach Blockchain Demo       ║");

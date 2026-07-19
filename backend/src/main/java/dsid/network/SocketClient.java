@@ -1,13 +1,12 @@
-// Caminho: src/main/java/dsid/network/SocketClient.java
 package dsid.network;
 
 import java.io.PrintWriter;
 import java.net.Socket;
 
 /**
- * Cliente TCP fire-and-forget do PokeEach.
- * Abre conexão, envia mensagem e fecha imediatamente.
- * Timeout de conexão de 3 s evita bloqueio por peers offline.
+ * cliente TCP fire-and-forget
+ * abre conexao, envia mensagem e fecha imediatamente
+ * timeout de conexao de 3s evita bloqueio por peers offline
  */
 public class SocketClient {
 

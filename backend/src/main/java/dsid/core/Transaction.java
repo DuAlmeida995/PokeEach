@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/core/Transaction.java
 package dsid.core;
 
 import dsid.crypto.HashUtils;
@@ -18,9 +17,6 @@ public class Transaction {
     private long      timestamp;
     private byte[]    assinaturaDigital;
 
-    // ---------------------------------------------------------------
-    // Construtor principal — para transações novas (gera timestamp agora)
-    // ---------------------------------------------------------------
     public Transaction(PublicKey remetente, PublicKey destinatario, String idPokemon) {
         this.remetente    = remetente;
         this.destinatario = destinatario;
@@ -29,21 +25,14 @@ public class Transaction {
         this.transactionId = calculateHash();
     }
 
-    /**
-     * Construtor de reconstrução — usado pelo BlockchainSerializer e LedgerRepository.
-     * Preserva o timestamp original para que calculateHash() produza o mesmo resultado.
-     */
     public Transaction(PublicKey remetente, PublicKey destinatario, String idPokemon, long timestamp) {
         this.remetente    = remetente;
         this.destinatario = destinatario;
         this.idPokemon    = idPokemon;
-        this.timestamp    = timestamp; // timestamp original preservado
+        this.timestamp    = timestamp; 
         this.transactionId = calculateHash();
     }
 
-    // ---------------------------------------------------------------
-    // Hashing
-    // ---------------------------------------------------------------
     public String calculateHash() {
         String senderKey    = encodedKey(remetente);
         String recipientKey = encodedKey(destinatario);
@@ -54,9 +43,6 @@ public class Transaction {
         return (key != null) ? Base64.getEncoder().encodeToString(key.getEncoded()) : "null";
     }
 
-    // ---------------------------------------------------------------
-    // Assinatura digital
-    // ---------------------------------------------------------------
     public void generateSignature(PrivateKey chavePrivada) {
         try {
             Signature rsa = Signature.getInstance("SHA256withRSA");
@@ -84,16 +70,10 @@ public class Transaction {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Setter para assinatura (reconstrução do BD / rede)
-    // ---------------------------------------------------------------
     public void setAssinaturaFromDb(byte[] assinatura) {
         this.assinaturaDigital = assinatura;
     }
 
-    // ---------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------
     public String    getTransactionId()     { return transactionId; }
     public PublicKey getRemetente()         { return remetente; }
     public PublicKey getDestinatario()      { return destinatario; }
@@ -101,9 +81,6 @@ public class Transaction {
     public long      getTimestamp()         { return timestamp; }
     public byte[]    getAssinaturaDigital() { return assinaturaDigital; }
 
-    // ---------------------------------------------------------------
-    // toString — usado no calculateHash() do Block via transactions.toString()
-    // ---------------------------------------------------------------
     @Override
     public String toString() {
         return "TX{"

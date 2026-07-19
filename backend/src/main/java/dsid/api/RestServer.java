@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/api/RestServer.java
 package dsid.api;
 
 import com.google.gson.Gson;
@@ -31,7 +30,6 @@ public class RestServer {
     private final MiningService    miner;
     private final Wallet           wallet;
 
-    // Estado de troca pendente (solicitação recebida aguardando resposta)
     private volatile Map<String, Object> trocaPendente = null;
 
     public RestServer(int porta, P2PNode node, Blockchain blockchain,
@@ -43,7 +41,6 @@ public class RestServer {
         this.miner      = miner;
         this.wallet     = wallet;
 
-        // Escuta em 0.0.0.0 para aceitar conexões internas do proxy
         server = HttpServer.create(new InetSocketAddress(porta), 0);
         server.setExecutor(Executors.newFixedThreadPool(4));
 
@@ -67,9 +64,7 @@ public class RestServer {
 
     public void parar() { server.stop(0); }
 
-    // ---------------------------------------------------------------
     // GET /status
-    // ---------------------------------------------------------------
     private void handleStatus(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
         Map<String, Object> body = new LinkedHashMap<>();
@@ -81,11 +76,9 @@ public class RestServer {
         responder(ex, 200, body);
     }
 
-    // ---------------------------------------------------------------
-    // GET /inventario         → inventário local
-    // GET /inventario/{addr}  → proxy para /inventario do nó rival
+    // GET /inventario         → inventario local
+    // GET /inventario/{addr}  → proxy para /inventario do no rival
     //    addr = "IP:portaP2P" ex: "127.0.0.1:8082"
-    // ---------------------------------------------------------------
     private void handleInventario(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
 
@@ -102,7 +95,7 @@ public class RestServer {
             }
         }
 
-        // ── Inventário LOCAL ────────────────────────────────────────
+        // inventario local
         if (peerParam == null || peerParam.isBlank()) {
             List<String> trocas      = repository.getInventarioDoTreinador(wallet.getChavePublica());
             List<String> recompensas = repository.getPokemonsRecompensaDoMinerador(wallet.getChavePublica());
@@ -122,7 +115,7 @@ public class RestServer {
             return;
         }
 
-        // ── Inventário do RIVAL — proxy HTTP ───────────────────────
+        // inventario de outros usuarios
         String invUrl = "";
         try {
             String[] partes = peerParam.split(":");
@@ -153,9 +146,7 @@ public class RestServer {
         }
     }
 
-    // ---------------------------------------------------------------
     // GET /peers
-    // ---------------------------------------------------------------
     private void handlePeers(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
 
@@ -202,9 +193,7 @@ public class RestServer {
         responder(ex, 200, Map.of("peers", lista));
     }
 
-    // ---------------------------------------------------------------
     // POST /minerar
-    // ---------------------------------------------------------------
     private void handleMinerar(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
@@ -241,9 +230,7 @@ public class RestServer {
         responder(ex, 200, resp);
     }
 
-    // ---------------------------------------------------------------
     // POST /transacao
-    // ---------------------------------------------------------------
     private void handleTransacao(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
@@ -282,11 +269,9 @@ public class RestServer {
     }
 
 
-    // ---------------------------------------------------------------
     // POST /troca/solicitar
-    // Envia solicitação de troca para o nó rival via HTTP
+    // Envia solicitacao de troca para o no rival via HTTP
     // body: { enderecoRival, meuPokemon, pokemonSolicitado }
-    // ---------------------------------------------------------------
     private void handleTrocaSolicitar(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
@@ -338,10 +323,8 @@ public class RestServer {
         }
     }
 
-    // ---------------------------------------------------------------
-    // POST /troca/receber  (chamado pelo nó do solicitante diretamente)
-    // Armazena a solicitação pendente para o frontend consultar
-    // ---------------------------------------------------------------
+    // POST /troca/receber  (chamado pelo no do solicitante diretamente)
+    // Armazena a solicitacao pendente para o frontend consultar
     private void handleTrocaReceber(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
         String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -352,10 +335,8 @@ public class RestServer {
         responder(ex, 200, Map.of("sucesso", true));
     }
 
-    // ---------------------------------------------------------------
     // GET /troca/pendente
     // Frontend consulta se há solicitação pendente
-    // ---------------------------------------------------------------
     private void handleTrocaPendente(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
         if (trocaPendente != null) {
@@ -367,10 +348,8 @@ public class RestServer {
         }
     }
 
-    // ---------------------------------------------------------------
     // POST /troca/responder
     // body: { aceitar: true/false }
-    // ---------------------------------------------------------------
     private void handleTrocaResponder(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
@@ -391,26 +370,19 @@ public class RestServer {
             return;
         }
 
-        // Aceita: executa as duas TXs — uma em cada direção
         try {
             String chaveRemetente    = (String) trocaPendente.get("chaveRemetente");
             String pokemonOferecido  = (String) trocaPendente.get("pokemonOferecido");
             String pokemonSolicitado = (String) trocaPendente.get("pokemonSolicitado");
             String enderecoRemetente = (String) trocaPendente.get("enderecoRemetente");
 
-            // TX 1: remetente → eu (pokemonOferecido vem para mim)
             java.security.PublicKey chaveRem = dsid.utils.KeyUtils.stringToPublicKey(chaveRemetente);
-            // Nota: a TX de transferência do remetente para mim será criada pelo remetente
-            // Aqui criamos apenas a nossa TX de envio do pokemonSolicitado para o remetente
-
-            // TX local: eu envio pokemonSolicitado para o remetente
             dsid.core.Transaction txLocal = new dsid.core.Transaction(
                     wallet.getChavePublica(), chaveRem, pokemonSolicitado);
             txLocal.generateSignature(wallet.getChavePrivada());
             blockchain.adicionarTransacao(txLocal);
             node.broadcast("TX|" + dsid.network.BlockchainSerializer.serializarTransacao(txLocal));
 
-            // Notifica o remetente para criar a TX dele (pokemonOferecido → eu)
             String[] partes  = enderecoRemetente.split(":");
             int portaRest    = 9000 + (Integer.parseInt(partes[1].trim()) - 8000);
             String urlConf   = "http://127.0.0.1:" + portaRest + "/troca/confirmar";
@@ -434,10 +406,9 @@ public class RestServer {
             trocaPendente = null;
             System.out.println("[REST] Troca aceita! TX criadas. Minerando bloco...");
 
-            // Minera em background para confirmar as TXs (sem recompensa de Pokémon)
             new Thread(() -> {
                 try {
-                    Thread.sleep(800); // aguarda TX do remetente chegar via /confirmar
+                    Thread.sleep(800); 
                     minerarSemRecompensa();
                 } catch (Exception e) {
                     System.err.println("[REST] Erro ao minerar bloco de troca: " + e.getMessage());
@@ -451,11 +422,10 @@ public class RestServer {
         }
     }
 
-    // ---------------------------------------------------------------
     // POST /troca/confirmar
-    // Chamado pelo receptor quando aceita — solicita ao remetente criar sua TX
+    // Chamado pelo receptor quando aceita, solicita ao remetente criar sua TX
     // body: { chaveDestinatario, pokemon }
-    // ---------------------------------------------------------------
+
     private void handleTrocaConfirmar(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
 
@@ -476,7 +446,6 @@ public class RestServer {
 
             System.out.println("[REST] TX de confirmacao criada: " + pokemon + " → destinatario");
 
-            // Minera em background para confirmar a TX (sem recompensa de Pokémon)
             new Thread(() -> {
                 try {
                     Thread.sleep(300);
@@ -492,11 +461,6 @@ public class RestServer {
         }
     }
 
-
-    /**
-     * Minera um bloco apenas para confirmar TXs pendentes.
-     * Não gera recompensa de Pokémon — usa TX interna __MINE__ descartada pelo inventário.
-     */
     private void minerarSemRecompensa() {
         try {
             if (blockchain.getPendingTransactions().isEmpty()) {
@@ -505,7 +469,6 @@ public class RestServer {
                 dummy.generateSignature(wallet.getChavePrivada());
                 blockchain.adicionarTransacao(dummy);
             }
-            // Usa minerarBlocoConfirmacao — não gera recompensa de Pokémon (__NONE__)
             dsid.core.Block bloco = miner.minerarBlocoConfirmacao(wallet.getChavePublica());
             if (bloco != null) {
                 node.broadcast("NEW_BLOCK|" + dsid.network.BlockchainSerializer.serializarBloco(bloco));
@@ -516,9 +479,6 @@ public class RestServer {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------
     private boolean method(HttpExchange ex, String esperado) throws IOException {
         ex.getResponseHeaders().add("Access-Control-Allow-Origin",  "*");
         ex.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -699,16 +659,10 @@ public class RestServer {
         POKEMON_IDS.put("__NONE__", 0);
     }
     private int pokemonNameToId(String nome) {
-        // nome pode ser "Pikachu" ou "Pikachu|hp:28|atk:15|..."
         String nomeBase = nome.contains("|") ? nome.split("\\|")[0] : nome;
         return POKEMON_IDS.getOrDefault(nomeBase, 1);
     }
 
-    /**
-     * Converte um idPokemon com IVs em um Map para o frontend.
-     * Entrada:  "Pikachu|hp:28|atk:15|def:22|spa:19|spd:31|spe:07"
-     * Saída:    { nome, id, hp, atk, def, spa, spd, spe }
-     */
     private Map<String, Object> parsePokemon(String idPokemon) {
         Map<String, Object> p = new LinkedHashMap<>();
         if (idPokemon == null || idPokemon.startsWith("__")) return p;
@@ -719,7 +673,6 @@ public class RestServer {
         p.put("nomeCompleto", idPokemon);
         p.put("id",      pokemonNameToId(nomeBase));
 
-        // Parseia os IVs se existirem
         if (parts.length > 1) {
             for (int i = 1; i < parts.length; i++) {
                 String[] kv = parts[i].split(":");

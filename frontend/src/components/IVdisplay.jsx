@@ -1,7 +1,3 @@
-/**
- * Exibe os IVs de um Pokémon como barras coloridas.
- * Recebe o objeto pokemon que pode ter: { hp, atk, def, spa, spd, spe }
- */
 export default function IVDisplay({ pokemon, compact = false }) {
   if (!pokemon) return null
 
@@ -14,7 +10,6 @@ export default function IVDisplay({ pokemon, compact = false }) {
     { key: 'spe', label: 'VEL',  color: '#F85888' },
   ]
 
-  // Só exibe se tem ao menos um IV
   const temIVs = ivs.some(({ key }) => pokemon[key] !== undefined)
   if (!temIVs) return null
 
@@ -33,8 +28,7 @@ export default function IVDisplay({ pokemon, compact = false }) {
         {ivs.map(({ key, label, color }) => {
           const val = pokemon[key]
           if (val === undefined) return null
-          // Percentual relativo ao valor máximo possível do IV
-          // (que é o próprio base_stat do Pokémon — armazenado como max)
+          // percentual relativo ao valor maximo possivel do IV (que eh o proprio base_stat do Pokemon, armazenado como max)
           const pct = Math.min(100, Math.round((val / (val + 31)) * 100) + 20)
           return (
             <div key={key}>

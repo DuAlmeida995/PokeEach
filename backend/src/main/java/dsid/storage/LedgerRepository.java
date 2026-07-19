@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/storage/LedgerRepository.java
 package dsid.storage;
 
 import dsid.core.Block;
@@ -56,10 +55,6 @@ public class LedgerRepository {
         runMigrations();
     }
 
-    /**
-     * Adiciona colunas novas em bancos criados por versões anteriores do código.
-     * Se a coluna já existir o erro "duplicate column" é silenciado — operação segura e idempotente.
-     */
     private void runMigrations() {
         String[][] migrations = {
             { "blocks",       "height",             "INTEGER NOT NULL DEFAULT 0" },
@@ -144,20 +139,10 @@ public class LedgerRepository {
         return null;
     }
 
-    /**
-     * Retorna o inventário completo do treinador considerando o estado atual de cada Pokémon.
-     *
-     * Lógica unificada:
-     *   1. Pokémon de mineração: aparece se não foi transferido depois (sem TX posterior saindo dele)
-     *   2. Pokémon de troca: aparece se a última TX do Pokémon tem o treinador como destinatário
-     *
-     * Ignora Pokémon internos (__MINE__, CAPTURA_*).
-     */
     public List<String> getInventarioDoTreinador(PublicKey chavePublica) {
         String chaveStr = KeyUtils.publicKeyToString(chavePublica);
         Set<String> inventario = new LinkedHashSet<>();
 
-        // 1. Pokémon recebidos por TX onde esta chave é o destinatário mais recente
         String sqlTx =
             "SELECT t.id_pokemon "
           + "FROM transactions t "
@@ -187,7 +172,6 @@ public class LedgerRepository {
           + "  AND b.reward_pokemon NOT LIKE 'CAPTURA\\_%' ESCAPE '\\' "
           + "  AND b.reward_pokemon != '__MINE__' "
           + "  AND b.reward_pokemon != '__NONE__' "
-          // Exclui se já existe TX onde este treinador enviou esse Pokémon para outra pessoa
           + "  AND NOT EXISTS ("
           + "    SELECT 1 FROM transactions t2 "
           + "    WHERE t2.id_pokemon = b.reward_pokemon "
@@ -207,10 +191,7 @@ public class LedgerRepository {
         return new ArrayList<>(inventario);
     }
 
-    /** Mantido para compatibilidade com RestServer — delega para getInventarioDoTreinador */
     public List<String> getPokemonsRecompensaDoMinerador(PublicKey chavePublica) {
-        // Recompensas são agora tratadas dentro do inventário unificado
-        // Retorna lista vazia para evitar duplicação no RestServer
         return new ArrayList<>();
     }
 

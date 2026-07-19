@@ -6,10 +6,8 @@ import java.sql.SQLException;
 
 public class SQLiteConnection {
 
-    // Nome do banco configurável por nó — padrão blockchain_kanto.db
     private static String dbName = "blockchain_kanto.db";
 
-    /** Chamado pelo Main antes de qualquer conexão, define o banco do nó. */
     public static void setDbName(String nome) {
         dbName = nome;
     }

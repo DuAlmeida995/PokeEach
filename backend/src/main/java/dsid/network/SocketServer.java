@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/network/SocketServer.java
 package dsid.network;
 
 import java.net.ServerSocket;
@@ -7,18 +6,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Servidor TCP P2P do PokeEach.
- *
- * Melhorias em relação à versão original:
- *   - Thread pool (ExecutorService) com até 10 threads: cada conexão
- *     de vizinho é tratada em paralelo, sem bloquear o accept loop.
- *   - IP e porta do remetente são extraídos e repassados ao MessageParser,
- *     permitindo que PING responda PONG corretamente e que GET_CHAIN
- *     envie CHAIN de volta ao solicitante.
- *   - Timeout de leitura de 5 s por socket para evitar conexões travadas.
- *   - Shutdown limpo do pool ao parar o servidor.
- */
 public class SocketServer extends Thread {
 
     private static final int MAX_THREADS     = 10;
@@ -33,7 +20,7 @@ public class SocketServer extends Thread {
     public SocketServer(int porta, MessageParser parser) {
         this.porta  = porta;
         this.parser = parser;
-        setDaemon(true); // não impede o JVM de fechar
+        setDaemon(true); 
         setName("SocketServer-" + porta);
     }
 
@@ -46,7 +33,6 @@ public class SocketServer extends Thread {
             while (rodando) {
                 try {
                     Socket socketVizinho = serverSocket.accept();
-                    // Cada conexão é tratada em thread separada do pool
                     pool.submit(() -> tratarConexao(socketVizinho));
                 } catch (Exception e) {
                     if (rodando) {
