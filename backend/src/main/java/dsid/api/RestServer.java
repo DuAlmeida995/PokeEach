@@ -112,12 +112,10 @@ public class RestServer {
             todos.addAll(recompensas);
 
             List<Map<String, Object>> lista = new ArrayList<>();
-            for (String nome : todos) {
-                if (nome.startsWith("CAPTURA_") || nome.equals("__MINE__")) continue;
-                Map<String, Object> p = new LinkedHashMap<>();
-                p.put("nome", nome);
-                p.put("id",   pokemonNameToId(nome));
-                lista.add(p);
+            for (String idPokemon : todos) {
+                if (idPokemon.startsWith("CAPTURA_") || idPokemon.startsWith("__")) continue;
+                Map<String, Object> p = parsePokemon(idPokemon);
+                if (!p.isEmpty()) lista.add(p);
             }
             responder(ex, 200, Map.of("pokemon", lista,
                                        "chave",   wallet.getEnderecoPublico()));
@@ -236,8 +234,10 @@ public class RestServer {
         resp.put("sucesso",       true);
         resp.put("height",        bloco.getHeight());
         resp.put("hash",          bloco.getHash());
-        resp.put("rewardPokemon", bloco.getRewardPokemon());
-        resp.put("rewardId",      pokemonNameToId(bloco.getRewardPokemon()));
+        Map<String, Object> rewardParsed = parsePokemon(bloco.getRewardPokemon());
+        resp.put("rewardPokemon", rewardParsed.getOrDefault("nome", bloco.getRewardPokemon()));
+        resp.put("rewardId",      rewardParsed.getOrDefault("id", 1));
+        resp.put("rewardIVs",     rewardParsed);
         responder(ex, 200, resp);
     }
 
@@ -699,6 +699,36 @@ public class RestServer {
         POKEMON_IDS.put("__NONE__", 0);
     }
     private int pokemonNameToId(String nome) {
-        return POKEMON_IDS.getOrDefault(nome, 1);
+        // nome pode ser "Pikachu" ou "Pikachu|hp:28|atk:15|..."
+        String nomeBase = nome.contains("|") ? nome.split("\\|")[0] : nome;
+        return POKEMON_IDS.getOrDefault(nomeBase, 1);
+    }
+
+    /**
+     * Converte um idPokemon com IVs em um Map para o frontend.
+     * Entrada:  "Pikachu|hp:28|atk:15|def:22|spa:19|spd:31|spe:07"
+     * Saída:    { nome, id, hp, atk, def, spa, spd, spe }
+     */
+    private Map<String, Object> parsePokemon(String idPokemon) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        if (idPokemon == null || idPokemon.startsWith("__")) return p;
+
+        String[] parts = idPokemon.split("\\|");
+        String nomeBase = parts[0];
+        p.put("nome",    nomeBase);
+        p.put("nomeCompleto", idPokemon);
+        p.put("id",      pokemonNameToId(nomeBase));
+
+        // Parseia os IVs se existirem
+        if (parts.length > 1) {
+            for (int i = 1; i < parts.length; i++) {
+                String[] kv = parts[i].split(":");
+                if (kv.length == 2) {
+                    try { p.put(kv[0], Integer.parseInt(kv[1])); }
+                    catch (NumberFormatException e) { p.put(kv[0], kv[1]); }
+                }
+            }
+        }
+        return p;
     }
 }

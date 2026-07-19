@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import IVDisplay from '../components/IVDisplay'
 import { getSpriteUrl, getInventarioRival, enviarSolicitacaoTroca } from '../services/api'
 
 export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVoltar }) {
@@ -10,14 +11,14 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
   const [sucesso,          setSucesso]           = useState(false)
   const [erro,             setErro]              = useState(null)
 
-  // Reage quando usuário clica num treinador na sidebar estando já na tela de troca
+  // Reage quando usuário clica num treinador na sidebar estando na tela de troca
   useEffect(() => {
     if (usuarioAtivo && usuarioAtivo.chave !== rivalSelecionado?.chave) {
       setRivalSelecionado(usuarioAtivo)
     }
   }, [usuarioAtivo])
 
-  // Carrega inventário do rival pelo endereço P2P (IP:porta)
+  // Carrega inventário do rival
   useEffect(() => {
     if (!rivalSelecionado?.chave) return
     setCarregando(true)
@@ -25,7 +26,6 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
     setInventarioRival([])
     setErro(null)
 
-    // rivalSelecionado.chave = "127.0.0.1:8082" (endereço P2P)
     getInventarioRival(rivalSelecionado.chave)
       .then(data => setInventarioRival(data.pokemon || []))
       .catch(e => setErro('Não foi possível carregar o inventário: ' + e.message))
@@ -37,11 +37,10 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
     setEnviando(true)
     setErro(null)
     try {
-      // Envia solicitação de troca bilateral — o rival precisa aceitar
       await enviarSolicitacaoTroca(
-        rivalSelecionado.chave,      // endereço P2P do rival (IP:porta)
-        meuPokemon.nome,             // Pokémon que estou oferecendo
-        pokemonRival.nome            // Pokémon que quero receber
+        rivalSelecionado.chave,
+        meuPokemon.nomeCompleto || meuPokemon.nome,
+        pokemonRival.nomeCompleto || pokemonRival.nome
       )
       setSucesso(true)
     } catch (e) {
@@ -52,7 +51,23 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
   }
 
   if (sucesso) {
-    return <TelaSucesso meuPokemon={meuPokemon} pokemonRival={pokemonRival} onVoltar={onVoltar} />
+    return (
+      <div style={{
+        flex: 1, background: '#3050C8',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: '24px', height: '100vh',
+      }}>
+        <p style={{ fontFamily: 'var(--font)', fontSize: '10px', color: '#F8C800', textAlign: 'center', lineHeight: 2 }}>
+          Solicitação enviada!<br />Aguardando o rival aceitar ✓
+        </p>
+        <button onClick={onVoltar} style={{
+          background: '#D8D8D8', border: '3px solid #888', borderBottom: '5px solid #555',
+          fontFamily: 'var(--font)', fontSize: '8px', color: '#181818',
+          padding: '12px 20px', cursor: 'pointer',
+        }}>Voltar ao Inventário</button>
+      </div>
+    )
   }
 
   return (
@@ -64,10 +79,10 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
       <div style={{
         flex: 1, display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        gap: '24px', padding: '20px', overflowY: 'auto',
+        gap: '20px', padding: '16px', overflowY: 'auto',
       }}>
         {/* Meu Pokémon */}
-        <PokemonTradeCard titulo="Você oferece" pokemon={meuPokemon} />
+        <PokemonTradeCard titulo="Você oferece" pokemon={meuPokemon} showIVs />
 
         {/* Pokébola */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -75,7 +90,7 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
             src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png"
             alt="Pokébola"
             style={{
-              width: '64px', height: '64px', imageRendering: 'pixelated',
+              width: '56px', height: '56px', imageRendering: 'pixelated',
               filter: pokemonRival ? 'brightness(1.3)' : 'brightness(0.6)',
               transition: 'filter 0.3s',
             }}
@@ -84,7 +99,7 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
         </div>
 
         {/* Lado do rival */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', maxWidth: '320px' }}>
           {rivalSelecionado ? (
             <>
               <p style={{ fontFamily: 'var(--font)', fontSize: '7px', color: '#F8C800' }}>
@@ -113,11 +128,10 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
                     <div key={`${p.id}-${i}`} onClick={() => setPokemonRival(p)} title={p.nome}
                       style={{
                         width: '60px', height: '60px',
-                        background: pokemonRival?.nome === p.nome ? '#A8D8A8' : '#C8C8C8',
-                        border: pokemonRival?.nome === p.nome ? '3px solid #4CAF50' : '3px solid #888',
-                        cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        transform: pokemonRival?.nome === p.nome ? 'scale(1.1)' : 'scale(1)',
+                        background: pokemonRival?.nomeCompleto === p.nomeCompleto ? '#A8D8A8' : '#C8C8C8',
+                        border: pokemonRival?.nomeCompleto === p.nomeCompleto ? '3px solid #4CAF50' : '3px solid #888',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transform: pokemonRival?.nomeCompleto === p.nomeCompleto ? 'scale(1.1)' : 'scale(1)',
                         transition: 'transform 0.1s',
                       }}>
                       <img src={getSpriteUrl(p.id)} alt={p.nome}
@@ -127,13 +141,14 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
                 </div>
               )}
 
+              {/* IVs do Pokémon do rival selecionado */}
               {pokemonRival && (
-                <PokemonTradeCard titulo="Você recebe" pokemon={pokemonRival} />
+                <PokemonTradeCard titulo="Você recebe" pokemon={pokemonRival} showIVs />
               )}
             </>
           ) : (
             <div style={{
-              width: '180px', height: '200px',
+              width: '180px', height: '160px',
               background: 'rgba(255,255,255,0.06)',
               border: '3px dashed rgba(255,255,255,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
@@ -154,34 +169,39 @@ export default function Troca({ meuPokemon, usuarioInicial, usuarioAtivo, onVolt
 
       <div style={{
         background: 'rgba(0,0,0,0.35)', borderTop: '3px solid rgba(255,255,255,0.1)',
-        padding: '12px 24px', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'center',
+        padding: '12px 24px', display: 'flex', gap: '16px',
+        alignItems: 'center', justifyContent: 'center',
       }}>
         <PixelBtn onClick={onVoltar} color="#D8D8D8" textColor="#181818">◀ Voltar</PixelBtn>
         <PixelBtn
           onClick={confirmarTroca}
-          disabled={!pokemonRival || enviando || !rivalSelecionado?.chavePublica}
+          disabled={!pokemonRival || enviando}
           color={pokemonRival && !enviando ? '#D8D8D8' : '#888888'}
           textColor="#181818"
         >
-          {enviando ? '⏳ Enviando TX...' : 'Confirmar Troca'}
+          {enviando ? '⏳ Enviando...' : 'Confirmar Troca'}
         </PixelBtn>
       </div>
     </div>
   )
 }
 
-function PokemonTradeCard({ titulo, pokemon }) {
+function PokemonTradeCard({ titulo, pokemon, showIVs }) {
+  if (!pokemon) return null
   return (
     <div style={{
       background: '#D8D8D8', border: '4px solid #888888', borderBottom: '6px solid #555555',
-      padding: '12px', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', gap: '8px', minWidth: '150px',
+      padding: '10px', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', gap: '6px', minWidth: '140px', maxWidth: '160px',
     }}>
       <span style={{ fontFamily: 'var(--font)', fontSize: '6px', color: '#666', textTransform: 'uppercase' }}>{titulo}</span>
-      <span style={{ fontFamily: 'var(--font)', fontSize: '9px', color: '#181818' }}>{pokemon?.nome}</span>
-      {pokemon?.id > 0 && (
-        <img src={getSpriteUrl(pokemon.id)} alt={pokemon.nome}
-          style={{ width: '80px', height: '80px', imageRendering: 'pixelated' }} />
+      <span style={{ fontFamily: 'var(--font)', fontSize: '8px', color: '#181818' }}>{pokemon.nome}</span>
+      <img src={getSpriteUrl(pokemon.id)} alt={pokemon.nome}
+        style={{ width: '64px', height: '64px', imageRendering: 'pixelated' }} />
+      {showIVs && pokemon.hp !== undefined && (
+        <div style={{ width: '100%', borderTop: '1px solid #A8A8A8', paddingTop: '6px' }}>
+          <IVDisplay pokemon={pokemon} compact />
+        </div>
       )}
     </div>
   )
@@ -194,31 +214,6 @@ function PixelBtn({ children, onClick, disabled, color, textColor }) {
       fontFamily: 'var(--font)', fontSize: '7px', color: textColor,
       padding: '10px 16px', cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.7 : 1,
-    }}>
-      {children}
-    </button>
-  )
-}
-
-function TelaSucesso({ meuPokemon, pokemonRival, onVoltar }) {
-  return (
-    <div style={{
-      flex: 1, background: '#3050C8',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      gap: '24px', height: '100vh',
-    }}>
-      <p style={{ fontFamily: 'var(--font)', fontSize: '10px', color: '#F8C800', textAlign: 'center', lineHeight: 2 }}>
-        Solicitação enviada!<br />Aguardando o rival aceitar ✓
-      </p>
-      {pokemonRival && <PokemonTradeCard titulo="você recebeu" pokemon={pokemonRival} />}
-      <button onClick={onVoltar} style={{
-        background: '#D8D8D8', border: '3px solid #888', borderBottom: '5px solid #555',
-        fontFamily: 'var(--font)', fontSize: '8px', color: '#181818',
-        padding: '12px 20px', cursor: 'pointer',
-      }}>
-        Voltar ao Inventário
-      </button>
-    </div>
+    }}>{children}</button>
   )
 }

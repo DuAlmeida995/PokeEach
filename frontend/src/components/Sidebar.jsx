@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getStatus, getPeers, minerar, getSpriteUrl } from '../services/api'
+import IVDisplay from './IVDisplay'
 
 export default function Sidebar({ onSelecionarUsuario, usuarioSelecionado, onPokemonMinerado }) {
   const [peers,  setPeers]  = useState([])
@@ -40,7 +41,7 @@ export default function Sidebar({ onSelecionarUsuario, usuarioSelecionado, onPok
           fontFamily: 'var(--font)', fontSize: '18px', color: '#F8C800',
           textShadow: '2px 2px 0 #8B0000, -1px -1px 0 #FF6600', letterSpacing: '-1px',
         }}>
-          Poke<span style={{ color: '#F8F8F8' }}>Each</span>
+          Pok<span style={{ color: '#F8F8F8' }}>Each</span>
         </span>
         {status && (
           <p style={{ fontFamily: 'var(--font)', fontSize: '5px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
@@ -132,6 +133,11 @@ function MinerarButton({ onPokemonMinerado }) {
           <p style={{ fontFamily: 'var(--font)', fontSize: '6px', color: '#F8C800', lineHeight: 1.8, marginTop: '4px' }}>
             Você capturou<br />{resultado.rewardPokemon}!
           </p>
+          {resultado.rewardIVs && resultado.rewardIVs.hp !== undefined && (
+            <div style={{ marginTop: '6px', background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '2px' }}>
+              <IVDisplay pokemon={resultado.rewardIVs} compact />
+            </div>
+          )}
         </div>
       )}
 
