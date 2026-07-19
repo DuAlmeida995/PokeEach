@@ -25,8 +25,8 @@ export async function getPeers()               { return get('/peers') }
 export async function minerar()                { return post('/minerar', {}) }
 
 /**
- * Busca inventário de um peer pelo seu endereço IP:porta P2P.
- * O backend faz o proxy para o /inventario do nó do rival.
+ * busca inventario de um peer pelo seu endereço IP:porta P2P.
+ * O backend faz o proxy para o /inventario do no do rival.
  */
 export async function getInventarioRival(enderecoP2P) {
   const encoded = encodeURIComponent(enderecoP2P)
@@ -58,15 +58,15 @@ export async function fetchPokemonStats(pokemonId) {
   }
 }
 
-/** Verifica se há uma solicitação de troca pendente para este nó */
+// verifica se ha uma solicitacao de troca pendente para este no 
 export async function getNotificacaoTroca() { return get('/troca/pendente') }
 
-/** Responde a uma solicitação de troca pendente */
+// responde a uma solicitaçao de troca pendente 
 export async function responderTroca(aceitar) {
   return post('/troca/responder', { aceitar })
 }
 
-/** Envia solicitação de troca bilateral para o rival */
+// envia solicitacao de troca bilateral para o rival
 export async function enviarSolicitacaoTroca(enderecoRival, meuPokemon, pokemonSolicitado) {
   return post('/troca/solicitar', { enderecoRival, meuPokemon, pokemonSolicitado })
 }

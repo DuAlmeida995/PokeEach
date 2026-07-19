@@ -148,8 +148,7 @@ public class MiningService {
         // Extrai 6 valores do hash usando pares de chars em posições distribuídas
         int[] ivs = new int[6];
         int hashLen = blockHash.length();
-        int[] offsets = {0, 8, 16, 24, 32, 40};
-
+        int[] offsets = {12, 20, 28, 36, 44, 52};
         for (int i = 0; i < 6; i++) {
             int pos = offsets[i] % (hashLen - 1);
             // Lê 2 chars do hash como valor hex (0-255)
@@ -187,20 +186,40 @@ public class MiningService {
             String json = new String(conn.getInputStream().readAllBytes(),
                                      java.nio.charset.StandardCharsets.UTF_8);
 
-            // Parser simples sem Gson para evitar dependência circular
-            String[] statNames = {"hp", "attack", "defense",
-                                  "special-attack", "special-defense", "speed"};
+            // Estrutura da PokeAPI:
+            // {"base_stat":45,"effort":0,"stat":{"name":"hp","url":"..."}}
+            // O "base_stat" aparece ANTES do "name" do stat no mesmo objeto.
+            // Estratégia: localiza o "name" do stat, depois busca "base_stat"
+            // no bloco que começa ANTES desse name (dentro do mesmo objeto {}).
+            String[] statNames = {"\"name\":\"hp\"", "\"name\":\"attack\"",
+                                  "\"name\":\"defense\"", "\"name\":\"special-attack\"",
+                                  "\"name\":\"special-defense\"", "\"name\":\"speed\""};
             int[] result = new int[6];
             for (int i = 0; i < statNames.length; i++) {
-                int idx = json.indexOf(statNames[i]);
-                if (idx < 0) { result[i] = 100; continue; }
-                // "base_stat": X aparece antes do nome do stat
-                int baseIdx = json.lastIndexOf("\"base_stat\":", idx);
-                if (baseIdx < 0) { result[i] = 100; continue; }
+                int nameIdx = json.indexOf(statNames[i]);
+                if (nameIdx < 0) { result[i] = 100; continue; }
+
+                // Acha o início do objeto que contém este stat (última '{' antes do name)
+                int objStart = json.lastIndexOf("{", nameIdx);
+                if (objStart < 0) { result[i] = 100; continue; }
+
+                // Dentro desse bloco, acha "base_stat":
+                int baseIdx = json.lastIndexOf("\"base_stat\":", nameIdx);
+                if (baseIdx < objStart) { result[i] = 100; continue; }
+
                 int numStart = baseIdx + 12;
-                int numEnd   = json.indexOf(",", numStart);
+                // Valor termina em vírgula ou '}'
+                int numEnd = numStart;
+                while (numEnd < json.length() &&
+                       json.charAt(numEnd) != ',' &&
+                       json.charAt(numEnd) != '}') numEnd++;
+
                 result[i] = Integer.parseInt(json.substring(numStart, numEnd).trim());
             }
+
+            System.out.println("[MINING] Stats de " + nomePokemon + ": hp=" + result[0]
+                    + " atk=" + result[1] + " def=" + result[2]
+                    + " spa=" + result[3] + " spd=" + result[4] + " spe=" + result[5]);
             return result;
 
         } catch (Exception e) {

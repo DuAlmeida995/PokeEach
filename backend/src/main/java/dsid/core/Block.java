@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/core/Block.java
 package dsid.core;
 
 import dsid.crypto.HashUtils;
@@ -19,12 +18,9 @@ public class Block {
     private String rewardPokemon;
     private final List<Transaction> transactions;
 
-    // Timestamp fixo do Gênesis — hash idêntico em todos os nós
+    // timestamp fixo do Genesis, hash identico em todos os nos
     public static final long GENESIS_TIMESTAMP = 1700000000000L;
 
-    // ---------------------------------------------------------------
-    // Construtor principal — para criação de blocos novos
-    // ---------------------------------------------------------------
     public Block(int height, String previousHash, List<Transaction> transactions,
                  PublicKey minerKey, String rewardPokemon) {
         this.height        = height;
@@ -40,9 +36,9 @@ public class Block {
     }
 
     /**
-     * Construtor de reconstrução — usado pelo BD e pela rede (BlockchainSerializer).
-     * Recebe todos os campos já calculados, incluindo timestamp e nonce originais.
-     * NÃO recalcula hash no construtor — preserva o hash recebido.
+     * construtor de reconstrucao, usado pelo BD e pela rede (BlockchainSerializer).
+     * recebe todos os campos ja calculados, incluindo timestamp e nonce originais.
+     * nao recalcula hash no construtor, preserva o hash recebido.
      */
     public Block(int height, String previousHash, List<Transaction> transactions,
                  String minerKey, String rewardPokemon, long timestamp, int nonce, String hash) {
@@ -53,17 +49,14 @@ public class Block {
         this.rewardPokemon = (rewardPokemon != null) ? rewardPokemon : "";
         this.timestamp     = timestamp;
         this.nonce         = nonce;
-        this.hash          = hash; // hash já calculado — não recalcula
+        this.hash          = hash; 
     }
 
-    /** Retrocompatibilidade — 2 parâmetros */
     public Block(String previousHash, List<Transaction> transactions) {
         this(0, previousHash, transactions, (PublicKey) null, "");
     }
 
-    // ---------------------------------------------------------------
-    // Hashing
-    // ---------------------------------------------------------------
+    // hashing
     public String calculateHash() {
         String data = height
                 + previousHash
@@ -75,9 +68,7 @@ public class Block {
         return HashUtils.applySha256(data);
     }
 
-    // ---------------------------------------------------------------
     // Proof-of-Work
-    // ---------------------------------------------------------------
     public void mineBlock(int difficulty) {
         String target = "0".repeat(difficulty);
         while (!hash.startsWith(target)) {
@@ -87,9 +78,6 @@ public class Block {
         System.out.println("[BLOCK] Bloco #" + height + " minerado! Hash: " + hash);
     }
 
-    // ---------------------------------------------------------------
-    // Getters
-    // ---------------------------------------------------------------
     public int    getHeight()        { return height; }
     public String getHash()          { return hash; }
     public String getPreviousHash()  { return previousHash; }
@@ -102,9 +90,6 @@ public class Block {
         return Collections.unmodifiableList(transactions);
     }
 
-    // ---------------------------------------------------------------
-    // Setters para reconstrução do BD (legado — mantidos para compatibilidade)
-    // ---------------------------------------------------------------
     public void setHashFromDb(String hash)          { this.hash = hash; }
     public void setTimestampFromDb(long timestamp)  { this.timestamp = timestamp; }
     public void setNonceFromDb(int nonce)           { this.nonce = nonce; }
@@ -126,7 +111,6 @@ public class Block {
              + "\n}";
     }
 
-    // Recalcula o hash após definir o rewardPokemon (chamado pelo MiningService)
     public void recalcularHashComReward() {
         this.hash = calculateHash();
     }

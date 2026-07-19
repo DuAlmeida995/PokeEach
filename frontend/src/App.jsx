@@ -11,7 +11,7 @@ export default function App() {
   const [refreshKey,         setRefreshKey]         = useState(0)
   const [notificacao,        setNotificacao]        = useState(null)
 
-  // Polling de notificações de troca a cada 3s
+  // polling de notificacoes de troca a cada 3s
   useEffect(() => {
     const id = setInterval(() => {
       getNotificacaoTroca()
@@ -43,7 +43,6 @@ export default function App() {
     try {
       await responderTroca(true)
       setNotificacao(null)
-      // Aguarda o bloco ser minerado antes de recarregar o inventário
       setTimeout(() => setRefreshKey(k => k + 1), 3000)
     } catch (e) {
       console.error('Erro ao aceitar troca:', e)

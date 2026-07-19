@@ -1,3 +1,6 @@
+// dados mockados que foram utilizados para fazer os testes iniciais no projeto
+// agora nao sao mais usados
+
 export const MEU_TREINADOR = {
   nome: 'Ash',
   chavePublica: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...',

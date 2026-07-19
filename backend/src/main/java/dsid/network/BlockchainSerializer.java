@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/network/BlockchainSerializer.java
 package dsid.network;
 
 import com.google.gson.*;
@@ -11,20 +10,10 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
-/**
- * Serialização/deserialização JSON do protocolo P2P.
- *
- * Correção principal: fromDto() agora usa o construtor de reconstrução do Block
- * que preserva timestamp, nonce e hash originais — sem recalcular.
- * Isso corrigia o bug "Hash do bloco inválido" ao receber NEW_BLOCK.
- */
 public class BlockchainSerializer {
 
     private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
-    // ---------------------------------------------------------------
-    // DTOs
-    // ---------------------------------------------------------------
     public static class TransactionDto {
         public String transactionId;
         public String remetente;
@@ -56,9 +45,6 @@ public class BlockchainSerializer {
         public ChainPayload(List<BlockDto> b) { this.blocks = b; }
     }
 
-    // ---------------------------------------------------------------
-    // Block ↔ BlockDto
-    // ---------------------------------------------------------------
     public static BlockDto toDto(Block block) {
         BlockDto dto = new BlockDto();
         dto.height        = block.getHeight();
@@ -79,8 +65,6 @@ public class BlockchainSerializer {
             if (tx != null) txs.add(tx);
         }
 
-        // Usa o construtor de reconstrução — preserva timestamp, nonce e hash originais.
-        // Isso é fundamental: calculateHash() depende do timestamp exato do bloco original.
         return new Block(
             dto.height,
             dto.previousHash,
@@ -93,9 +77,6 @@ public class BlockchainSerializer {
         );
     }
 
-    // ---------------------------------------------------------------
-    // Transaction ↔ TransactionDto
-    // ---------------------------------------------------------------
     public static TransactionDto toDto(Transaction tx) {
         TransactionDto dto = new TransactionDto();
         dto.transactionId = tx.getTransactionId();
@@ -112,9 +93,6 @@ public class BlockchainSerializer {
         try {
             PublicKey remetente    = KeyUtils.stringToPublicKey(dto.remetente);
             PublicKey destinatario = KeyUtils.stringToPublicKey(dto.destinatario);
-            // Usa o construtor de reconstrução — preserva timestamp original
-            // para que calculateHash() produza o mesmo transactionId e o
-            // toString() da TX seja idêntico ao do nó que criou o bloco.
             Transaction tx = new Transaction(remetente, destinatario, dto.idPokemon, dto.timestamp);
             if (dto.assinatura != null)
                 tx.setAssinaturaFromDb(Base64.getDecoder().decode(dto.assinatura));
@@ -125,9 +103,6 @@ public class BlockchainSerializer {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Serialização de mensagens
-    // ---------------------------------------------------------------
     public static String serializarCadeia(List<Block> chain) {
         List<BlockDto> dtos = new ArrayList<>();
         for (Block b : chain) dtos.add(toDto(b));

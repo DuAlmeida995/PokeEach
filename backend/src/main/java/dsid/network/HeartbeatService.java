@@ -1,4 +1,3 @@
-// Caminho: src/main/java/dsid/network/HeartbeatService.java
 package dsid.network;
 
 import java.util.Map;
@@ -7,13 +6,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Serviço de Heartbeat — detecta falhas de crash nos vizinhos P2P.
- *
- * Correção: o PING agora inclui a porta P2P local no payload ("PING|8081"),
- * para que o vizinho saiba para qual porta responder o PONG — e não
- * para a porta efêmera da conexão TCP, que já foi fechada.
- */
 public class HeartbeatService {
 
     private static final long INTERVALO_PING_S  = 5;
@@ -67,10 +59,7 @@ public class HeartbeatService {
             String ip    = partes[0];
             int    porta = Integer.parseInt(partes[1]);
 
-            // Inclui a porta P2P local no payload para o vizinho saber onde responder
             SocketClient.enviarMensagem(ip, porta, "PING|" + node.getPortaLocal());
-
-            // Verifica timeout — inicializa com "agora" na primeira vez (sem falso positivo)
             long ultimoTs = ultimoPong.getOrDefault(vizinho, agora);
             long limite   = timeoutAtual.getOrDefault(vizinho, TIMEOUT_INICIAL_MS);
 

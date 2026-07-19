@@ -13,7 +13,7 @@ public class HashUtils {
             for (byte b : hashBytes) {
                 String hex = Integer.toHexString(0xff & b);
                 if (hex.length() == 1) {
-                    hexString.append('0'); // pro zero a esquerda não ser perdido
+                    hexString.append('0'); 
                 }
                 hexString.append(hex);
             }
