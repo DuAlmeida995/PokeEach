@@ -40,7 +40,7 @@ export default function Sidebar({ onSelecionarUsuario, usuarioSelecionado, onPok
           fontFamily: 'var(--font)', fontSize: '18px', color: '#F8C800',
           textShadow: '2px 2px 0 #8B0000, -1px -1px 0 #FF6600', letterSpacing: '-1px',
         }}>
-          Pok<span style={{ color: '#F8F8F8' }}>Each</span>
+          Poke<span style={{ color: '#F8F8F8' }}>Each</span>
         </span>
         {status && (
           <p style={{ fontFamily: 'var(--font)', fontSize: '5px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>

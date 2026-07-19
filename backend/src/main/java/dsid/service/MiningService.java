@@ -112,4 +112,38 @@ public class MiningService {
         int index = (int)(Math.abs(soma) % REWARD_POKEMON.length);
         return REWARD_POKEMON[index];
     }
+
+    /**
+     * Minera um bloco apenas para confirmar TXs pendentes, sem gerar recompensa de Pokémon.
+     * O rewardPokemon é marcado como "__NONE__" e filtrado pelo LedgerRepository.
+     */
+    public Block minerarBlocoConfirmacao(PublicKey mineradorPublicKey) {
+        List<Transaction> txPendentes = blockchain.getPendingTransactions();
+
+        if (txPendentes.isEmpty()) {
+            System.out.println("[MINING] Mempool vazia. Nenhum bloco a minerar.");
+            return null;
+        }
+
+        int    nextHeight = blockchain.getNextHeight();
+        String prevHash   = blockchain.getUltimoBloco().getHash();
+        int    difficulty = blockchain.getDifficulty();
+
+        // Bloco com rewardPokemon marcado como __NONE__ — não gera spawn
+        Block novoBloco = new Block(nextHeight, prevHash, txPendentes, mineradorPublicKey, "__NONE__");
+
+        System.out.println("[MINING] Minerando bloco de confirmação (sem recompensa)...");
+        novoBloco.mineBlock(difficulty);
+
+        // Mantém __NONE__ como reward — não deriva Pokémon do hash
+        novoBloco.recalcularHashComReward();
+
+        blockchain.adicionarBlocoMinerado(novoBloco);
+        blockchain.limparMempool(novoBloco);
+        repository.saveBlock(novoBloco);
+
+        System.out.println("[MINING] Bloco de confirmação #" + nextHeight + " persistido.");
+        return novoBloco;
+    }
+
 }

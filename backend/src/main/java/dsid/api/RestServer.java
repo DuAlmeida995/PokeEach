@@ -399,7 +399,7 @@ public class RestServer {
             String enderecoRemetente = (String) trocaPendente.get("enderecoRemetente");
 
             // TX 1: remetente → eu (pokemonOferecido vem para mim)
-            dsid.core.PublicKey chaveRem = dsid.utils.KeyUtils.stringToPublicKey(chaveRemetente);
+            java.security.PublicKey chaveRem = dsid.utils.KeyUtils.stringToPublicKey(chaveRemetente);
             // Nota: a TX de transferência do remetente para mim será criada pelo remetente
             // Aqui criamos apenas a nossa TX de envio do pokemonSolicitado para o remetente
 
@@ -432,7 +432,18 @@ public class RestServer {
             conn.getResponseCode();
 
             trocaPendente = null;
-            System.out.println("[REST] Troca aceita! TX criadas.");
+            System.out.println("[REST] Troca aceita! TX criadas. Minerando bloco...");
+
+            // Minera em background para confirmar as TXs (sem recompensa de Pokémon)
+            new Thread(() -> {
+                try {
+                    Thread.sleep(800); // aguarda TX do remetente chegar via /confirmar
+                    minerarSemRecompensa();
+                } catch (Exception e) {
+                    System.err.println("[REST] Erro ao minerar bloco de troca: " + e.getMessage());
+                }
+            }).start();
+
             responder(ex, 200, Map.of("sucesso", true, "aceito", true));
 
         } catch (Exception e) {
@@ -456,7 +467,7 @@ public class RestServer {
         String pokemon      = (String) body.get("pokemon");
 
         try {
-            dsid.core.PublicKey chaveDest = dsid.utils.KeyUtils.stringToPublicKey(chaveDestStr);
+            java.security.PublicKey chaveDest = dsid.utils.KeyUtils.stringToPublicKey(chaveDestStr);
             dsid.core.Transaction tx = new dsid.core.Transaction(
                     wallet.getChavePublica(), chaveDest, pokemon);
             tx.generateSignature(wallet.getChavePrivada());
@@ -464,9 +475,44 @@ public class RestServer {
             node.broadcast("TX|" + dsid.network.BlockchainSerializer.serializarTransacao(tx));
 
             System.out.println("[REST] TX de confirmacao criada: " + pokemon + " → destinatario");
+
+            // Minera em background para confirmar a TX (sem recompensa de Pokémon)
+            new Thread(() -> {
+                try {
+                    Thread.sleep(300);
+                    minerarSemRecompensa();
+                } catch (Exception e) {
+                    System.err.println("[REST] Erro ao minerar bloco de confirmacao: " + e.getMessage());
+                }
+            }).start();
+
             responder(ex, 200, Map.of("sucesso", true));
         } catch (Exception e) {
             responder(ex, 500, Map.of("erro", e.getMessage()));
+        }
+    }
+
+
+    /**
+     * Minera um bloco apenas para confirmar TXs pendentes.
+     * Não gera recompensa de Pokémon — usa TX interna __MINE__ descartada pelo inventário.
+     */
+    private void minerarSemRecompensa() {
+        try {
+            if (blockchain.getPendingTransactions().isEmpty()) {
+                dsid.core.Transaction dummy = new dsid.core.Transaction(
+                        wallet.getChavePublica(), wallet.getChavePublica(), "__MINE__");
+                dummy.generateSignature(wallet.getChavePrivada());
+                blockchain.adicionarTransacao(dummy);
+            }
+            // Usa minerarBlocoConfirmacao — não gera recompensa de Pokémon (__NONE__)
+            dsid.core.Block bloco = miner.minerarBlocoConfirmacao(wallet.getChavePublica());
+            if (bloco != null) {
+                node.broadcast("NEW_BLOCK|" + dsid.network.BlockchainSerializer.serializarBloco(bloco));
+                System.out.println("[REST] Bloco de confirmação minerado: #" + bloco.getHeight());
+            }
+        } catch (Exception e) {
+            System.err.println("[REST] Erro em minerarSemRecompensa: " + e.getMessage());
         }
     }
 

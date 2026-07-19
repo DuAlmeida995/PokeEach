@@ -9,6 +9,8 @@ import java.security.PublicKey;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 public class LedgerRepository {
 
@@ -142,45 +144,74 @@ public class LedgerRepository {
         return null;
     }
 
+    /**
+     * Retorna o inventário completo do treinador considerando o estado atual de cada Pokémon.
+     *
+     * Lógica unificada:
+     *   1. Pokémon de mineração: aparece se não foi transferido depois (sem TX posterior saindo dele)
+     *   2. Pokémon de troca: aparece se a última TX do Pokémon tem o treinador como destinatário
+     *
+     * Ignora Pokémon internos (__MINE__, CAPTURA_*).
+     */
     public List<String> getInventarioDoTreinador(PublicKey chavePublica) {
-        String sql =
+        String chaveStr = KeyUtils.publicKeyToString(chavePublica);
+        Set<String> inventario = new LinkedHashSet<>();
+
+        // 1. Pokémon recebidos por TX onde esta chave é o destinatário mais recente
+        String sqlTx =
             "SELECT t.id_pokemon "
           + "FROM transactions t "
           + "INNER JOIN ("
           + "  SELECT id_pokemon, MAX(timestamp) AS max_ts "
           + "  FROM transactions GROUP BY id_pokemon"
           + ") latest ON t.id_pokemon = latest.id_pokemon AND t.timestamp = latest.max_ts "
-          + "WHERE t.destinatario = ?";
+          + "WHERE t.destinatario = ? "
+          + "  AND t.id_pokemon NOT LIKE 'CAPTURA\\_%' ESCAPE '\\' "
+          + "  AND t.id_pokemon != '__MINE__'";
 
-        List<String> inventario = new ArrayList<>();
         try (Connection conn = SQLiteConnection.conectar();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, KeyUtils.publicKeyToString(chavePublica));
+             PreparedStatement ps = conn.prepareStatement(sqlTx)) {
+            ps.setString(1, chaveStr);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) inventario.add(rs.getString("id_pokemon"));
         } catch (Exception e) {
-            System.err.println("[STORAGE] Erro ao buscar inventário: " + e.getMessage());
+            System.err.println("[STORAGE] Erro ao buscar inventário TX: " + e.getMessage());
         }
-        return inventario;
+
+        // 2. Pokémon de mineração que NÃO foram transferidos depois
+        String sqlMine =
+            "SELECT b.reward_pokemon FROM blocks b "
+          + "WHERE b.miner_key = ? "
+          + "  AND b.reward_pokemon IS NOT NULL "
+          + "  AND b.reward_pokemon != '' "
+          + "  AND b.reward_pokemon NOT LIKE 'CAPTURA\\_%' ESCAPE '\\' "
+          + "  AND b.reward_pokemon != '__MINE__' "
+          + "  AND b.reward_pokemon != '__NONE__' "
+          // Exclui se já existe TX onde este treinador enviou esse Pokémon para outra pessoa
+          + "  AND NOT EXISTS ("
+          + "    SELECT 1 FROM transactions t2 "
+          + "    WHERE t2.id_pokemon = b.reward_pokemon "
+          + "      AND t2.remetente = ? "
+          + "  )";
+
+        try (Connection conn = SQLiteConnection.conectar();
+             PreparedStatement ps = conn.prepareStatement(sqlMine)) {
+            ps.setString(1, chaveStr);
+            ps.setString(2, chaveStr);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) inventario.add(rs.getString("reward_pokemon"));
+        } catch (Exception e) {
+            System.err.println("[STORAGE] Erro ao buscar recompensas de mineração: " + e.getMessage());
+        }
+
+        return new ArrayList<>(inventario);
     }
 
+    /** Mantido para compatibilidade com RestServer — delega para getInventarioDoTreinador */
     public List<String> getPokemonsRecompensaDoMinerador(PublicKey chavePublica) {
-        String sql =
-            "SELECT reward_pokemon FROM blocks "
-          + "WHERE miner_key = ? AND reward_pokemon IS NOT NULL AND reward_pokemon != ''";
-
-        List<String> recompensas = new ArrayList<>();
-        try (Connection conn = SQLiteConnection.conectar();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, KeyUtils.publicKeyToString(chavePublica));
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) recompensas.add(rs.getString("reward_pokemon"));
-        } catch (Exception e) {
-            System.err.println("[STORAGE] Erro ao buscar recompensas: " + e.getMessage());
-        }
-        return recompensas;
+        // Recompensas são agora tratadas dentro do inventário unificado
+        // Retorna lista vazia para evitar duplicação no RestServer
+        return new ArrayList<>();
     }
 
     private Block blockFromResultSet(ResultSet rs) throws Exception {

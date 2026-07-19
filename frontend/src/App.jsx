@@ -43,7 +43,8 @@ export default function App() {
     try {
       await responderTroca(true)
       setNotificacao(null)
-      setRefreshKey(k => k + 1)
+      // Aguarda o bloco ser minerado antes de recarregar o inventário
+      setTimeout(() => setRefreshKey(k => k + 1), 3000)
     } catch (e) {
       console.error('Erro ao aceitar troca:', e)
     }
