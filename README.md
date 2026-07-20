@@ -4,6 +4,27 @@ Plataforma **100% descentralizada (Pure P2P)** baseada em Blockchain, onde cada 
 
 ---
 
+## Como jogar
+
+### Minerando um Pokémon
+Clique no botão **Minerar** na barra lateral. O sistema executa o algoritmo Proof of Work, sorteia um Pokémon deterministicamente a partir do hash do bloco e gera IVs únicos consultando os stats base na PokéAPI. O bloco é propagado para todos os nós da rede via Gossip Protocol.
+
+![](assets/inventario.png)
+
+### Trocando Pokémon
+1. No **Inventário**, selecione o Pokémon que deseja oferecer
+2. Clique em **Trocar Pokémon** 
+3. Selecione um treinador online na barra lateral
+4. Escolha o Pokémon dele que deseja receber
+5. Clique em **Confirmar Troca**, uma solicitação é enviada ao rival
+6. O rival verá uma notificação e poderá **Aceitar** ou **Recusar**
+7. Se aceita, duas transações são criadas e um bloco é minerado automaticamente para confirmá-las
+
+![](assets/troca.png)
+
+---
+
+
 ## Tecnologias necessárias
 
 | Tecnologia | Versão mínima | Para quê |
@@ -131,22 +152,6 @@ New-NetFirewallRule -DisplayName "PokeEach REST 9081" -Direction Inbound -Protoc
 New-NetFirewallRule -DisplayName "PokeEach REST 9082" -Direction Inbound -Protocol TCP -LocalPort 9082 -Action Allow
 New-NetFirewallRule -DisplayName "PokeEach REST 9083" -Direction Inbound -Protocol TCP -LocalPort 9083 -Action Allow
 ```
-
----
-
-## Como jogar
-
-### Minerando um Pokémon
-Clique no botão **Minerar** na barra lateral. O sistema executa o algoritmo Proof of Work, sorteia um Pokémon deterministicamente a partir do hash do bloco e gera IVs únicos consultando os stats base na PokéAPI. O bloco é propagado para todos os nós da rede via Gossip Protocol.
-
-### Trocando Pokémon
-1. No **Inventário**, selecione o Pokémon que deseja oferecer
-2. Clique em **Trocar Pokémon** 
-3. Selecione um treinador online na barra lateral
-4. Escolha o Pokémon dele que deseja receber
-5. Clique em **Confirmar Troca**, uma solicitação é enviada ao rival
-6. O rival verá uma notificação e poderá **Aceitar** ou **Recusar**
-7. Se aceita, duas transações são criadas e um bloco é minerado automaticamente para confirmá-las
 
 ---
 
