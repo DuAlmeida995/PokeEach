@@ -63,7 +63,7 @@ $env:VITE_API_URL="http://localhost:9081"; npm run dev -- --port 3000
 $env:VITE_API_URL="http://localhost:9082"; npm run dev -- --port 3001
 ```
 
-#### **(IMPORTANTE) Nota sobre o NPM:** Se o comando de instalação falhar acusando erro de compatibilidade de versão (conflito de dependências), force a instalação ignorando a verificação com o comando: npm install --legacy-peer-deps
+## **(IMPORTANTE) Nota sobre o NPM:** Se o comando de instalação falhar acusando erro de compatibilidade de versão (conflito de dependências), force a instalação ignorando a verificação com o comando: npm install --legacy-peer-deps
 
 Acesse no navegador:
 - Jogador 1: `http://localhost:3000`
