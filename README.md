@@ -20,6 +20,7 @@ winget install Apache.Maven
 winget install OpenJS.NodeJS
 ```
 
+**(IMPORTANTE) Nota sobre o Maven:** Em algumas máquinas, o comando winget pode não conseguir instalar o Apache Maven. Caso o comando falhe, faça o download manual pelo site oficial (Binary zip archive), extraia o arquivo e adicione o caminho da pasta bin nas Variáveis de Ambiente do Windows (Path).
 ---
 
 ## Como rodar — Mesma máquina (desenvolvimento)
@@ -61,6 +62,8 @@ $env:VITE_API_URL="http://localhost:9081"; npm run dev -- --port 3000
 # Jogador 2 — controla o nó 8082
 $env:VITE_API_URL="http://localhost:9082"; npm run dev -- --port 3001
 ```
+
+**(IMPORTANTE) Nota sobre o NPM:** Se o comando de instalação falhar acusando erro de compatibilidade de versão (conflito de dependências), force a instalação ignorando a verificação com o comando: npm install --legacy-peer-deps
 
 Acesse no navegador:
 - Jogador 1: `http://localhost:3000`
