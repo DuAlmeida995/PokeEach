@@ -6,7 +6,7 @@ export default function PokemonCard({ pokemon, selecionado, onClick }) {
       onClick={() => onClick(pokemon)}
       title={pokemon.nome}
       style={{
-        width: '80px', height: '80px',
+        width: '100px', height: '100px', // Aumentado para 100px para alinhar com a nova grade
         background: selecionado ? '#A8D8A8' : '#C8C8C8',
         border: selecionado ? '3px solid #2E7D32' : '3px solid #888888',
         borderBottom: selecionado ? '4px solid #1B5E20' : '4px solid #555555',
@@ -21,7 +21,7 @@ export default function PokemonCard({ pokemon, selecionado, onClick }) {
         src={getSpriteUrl(pokemon.id)}
         alt={pokemon.nome}
         style={{
-          width: '56px', height: '56px',
+          width: '80px', height: '80px', // Aumentado de 56px para 80px para destacar o sprite
           imageRendering: 'pixelated',
           filter: selecionado ? 'none' : 'brightness(0.9)',
         }}

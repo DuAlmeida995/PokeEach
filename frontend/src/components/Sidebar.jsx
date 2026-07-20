@@ -38,21 +38,21 @@ export default function Sidebar({ onSelecionarUsuario, usuarioSelecionado, onPok
       {/* Logo */}
       <div style={{ padding: '12px 8px 8px', borderBottom: '4px solid #8B0000', textAlign: 'center' }}>
         <span style={{
-          fontFamily: 'var(--font)', fontSize: '18px', color: '#F8C800',
+          fontFamily: 'var(--font)', fontSize: '19px', color: '#F8C800',
           textShadow: '2px 2px 0 #8B0000, -1px -1px 0 #FF6600', letterSpacing: '-1px',
         }}>
-          Pok<span style={{ color: '#F8F8F8' }}>Each</span>
+          Poke<span style={{ color: '#F8F8F8' }}>Each</span>
         </span>
         {status && (
-          <p style={{ fontFamily: 'var(--font)', fontSize: '5px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
-            bloco #{status.height} · {status.nomeTreinador}
+          <p style={{ fontFamily: 'var(--font)', fontSize: '9px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
+            bloco #{status.height}· {status.nomeTreinador}
           </p>
         )}
       </div>
 
       {/* Online */}
       <div style={{ padding: '10px 10px 4px' }}>
-        <span style={{ fontFamily: 'var(--font)', fontSize: '7px', color: '#90EE90', letterSpacing: '1px' }}>
+        <span style={{ fontFamily: 'var(--font)', fontSize: '10px', color: '#90EE90', letterSpacing: '1px' }}>
           ● Online ({peers.length})
         </span>
         <hr style={{ border: '1px solid #8B0000', marginTop: '6px' }} />
@@ -61,14 +61,14 @@ export default function Sidebar({ onSelecionarUsuario, usuarioSelecionado, onPok
       {/* Lista */}
       <ul style={{ listStyle: 'none', padding: '4px 0', overflowY: 'auto', flex: 1 }}>
         {peers.length === 0 && (
-          <li style={{ padding: '8px 10px', fontFamily: 'var(--font)', fontSize: '6px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.8 }}>
+          <li style={{ padding: '8px 10px', fontFamily: 'var(--font)', fontSize: '9px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.8 }}>
             Nenhum peer<br />conectado
           </li>
         )}
         {peers.map(u => (
           <li key={u.chave} onClick={() => onSelecionarUsuario(usuarioSelecionado?.chave === u.chave ? null : u)} style={{
             padding: '8px 10px',
-            fontFamily: 'var(--font)', fontSize: '6.5px',
+            fontFamily: 'var(--font)', fontSize: '9.5px',
             color: usuarioSelecionado?.chave === u.chave ? '#F8C800' : '#FFB3B3',
             cursor: 'pointer',
             background: usuarioSelecionado?.chave === u.chave ? '#8B0000' : 'transparent',
@@ -100,7 +100,6 @@ function MinerarButton({ onPokemonMinerado }) {
     try {
       const data = await minerar()
       setResultado(data)
-      // Bug 3 fix: avisa o Inventario para recarregar
       if (onPokemonMinerado) onPokemonMinerado(data)
     } catch (e) {
       setErro(e.message)
@@ -118,12 +117,23 @@ function MinerarButton({ onPokemonMinerado }) {
           : 'repeating-linear-gradient(45deg,#4CAF50 0,#4CAF50 4px,#3a8f3e 4px,#3a8f3e 8px)',
         border: '3px solid #2E7D32', borderBottom: '5px solid #1B5E20',
         cursor: minerando ? 'wait' : 'pointer',
-        fontFamily: 'var(--font)', fontSize: '6px',
+        fontFamily: 'var(--font)', 
+        fontSize: minerando ? '10px' : '12px', 
         color: '#F8F8F8', textShadow: '1px 1px 0 #1B5E20',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
         transform: minerando ? 'translateY(2px)' : 'none', transition: 'transform 0.1s',
       }}>
-        {minerando ? '⛏ Minerando...' : '🌿 Minerar'}
+        {!minerando && ( 
+          <img
+            src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png"
+            alt="Pokébola"
+            style={{
+              width: '35px', height: '35px',
+              imageRendering: 'pixelated',
+            }}
+          />
+        )}
+        {minerando ? 'Minerando...' : 'Minerar'}
       </button>
 
       {resultado && resultado.rewardId > 0 && (

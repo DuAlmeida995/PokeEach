@@ -78,11 +78,8 @@ public class RestServer {
 
     // GET /inventario         → inventario local
     // GET /inventario/{addr}  → proxy para /inventario do no rival
-    //    addr = "IP:portaP2P" ex: "127.0.0.1:8082"
     private void handleInventario(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
-
-        // Lê query string: /inventario?peer=127.0.0.1%3A8082
         String query = ex.getRequestURI().getQuery();
         String peerParam = null;
         if (query != null) {
@@ -134,7 +131,6 @@ public class RestServer {
             int code = conn.getResponseCode();
             if (code == 200) {
                 String json  = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                // Não adiciona CORS aqui — já foi adicionado pelo method() acima
                 responder(ex, 200, com.google.gson.JsonParser.parseString(json));
             } else {
                 System.err.println("[REST] Proxy retornou HTTP " + code + " de " + invUrl);
@@ -324,7 +320,6 @@ public class RestServer {
     }
 
     // POST /troca/receber  (chamado pelo no do solicitante diretamente)
-    // Armazena a solicitacao pendente para o frontend consultar
     private void handleTrocaReceber(HttpExchange ex) throws IOException {
         if (!method(ex, "POST")) return;
         String bodyStr = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -336,7 +331,6 @@ public class RestServer {
     }
 
     // GET /troca/pendente
-    // Frontend consulta se há solicitação pendente
     private void handleTrocaPendente(HttpExchange ex) throws IOException {
         if (!method(ex, "GET")) return;
         if (trocaPendente != null) {
